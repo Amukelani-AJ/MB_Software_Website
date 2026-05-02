@@ -15,121 +15,15 @@ import {
   Activity,
 } from "lucide-react";
 
-// ── Mock Data ─────────────────────────────────────────────────────────────────
-const STATS = [
-  {
-    id: 1,
-    label: "Hours Today",
-    value: "6.5",
-    unit: "hrs",
-    sub: "+1.2 from yesterday",
-    up: true,
-    icon: Clock,
-    accent: "#8DC63F",
-  },
-  {
-    id: 2,
-    label: "Billable This Month",
-    value: "R 142,800",
-    unit: "",
-    sub: "87% billing rate",
-    up: true,
-    icon: DollarSign,
-    accent: "#8DC63F",
-  },
-  {
-    id: 3,
-    label: "Active Matters",
-    value: "24",
-    unit: "",
-    sub: "3 added this week",
-    up: true,
-    icon: Briefcase,
-    accent: "#8DC63F",
-  },
-  {
-    id: 4,
-    label: "Pending Invoices",
-    value: "7",
-    unit: "",
-    sub: "R 68,400 outstanding",
-    up: false,
-    icon: FileText,
-    accent: "#f59e0b",
-  },
-];
+const API = "https://localhost:7291/api";
 
-const RECENT_ENTRIES = [
-  {
-    id: 1,
-    matter: "Khumalo v Nedbank",
-    ref: "MAT-2024-041",
-    task: "Drafting heads of argument",
-    attorney: "A. Ndlovu",
-    duration: "2.5 hrs",
-    units: 25,
-    status: "approved",
-    time: "09:00 – 11:30",
-  },
-  {
-    id: 2,
-    matter: "Dlamini Estate",
-    ref: "MAT-2024-038",
-    task: "Client consultation call",
-    attorney: "S. Mokoena",
-    duration: "0.5 hrs",
-    units: 5,
-    status: "pending",
-    time: "11:45 – 12:15",
-  },
-  {
-    id: 3,
-    matter: "Transnet Arbitration",
-    ref: "MAT-2024-029",
-    task: "Reviewing discovery documents",
-    attorney: "A. Ndlovu",
-    duration: "3.0 hrs",
-    units: 30,
-    status: "approved",
-    time: "13:00 – 16:00",
-  },
-  {
-    id: 4,
-    matter: "Mbeki Family Trust",
-    ref: "MAT-2024-045",
-    task: "Email correspondence with client",
-    attorney: "T. Sithole",
-    duration: "0.2 hrs",
-    units: 2,
-    status: "pending",
-    time: "16:10 – 16:22",
-  },
-  {
-    id: 5,
-    matter: "SARS Appeal – Venter",
-    ref: "MAT-2024-031",
-    task: "Research: Tax tribunal precedents",
-    attorney: "S. Mokoena",
-    duration: "1.5 hrs",
-    units: 15,
-    status: "approved",
-    time: "08:00 – 09:30",
-  },
-];
-
-const ACTIVE_MATTERS = [
-  { id: 1, name: "Khumalo v Nedbank", ref: "MAT-2024-041", hours: 42.5, budget: 60, attorney: "AN" },
-  { id: 2, name: "Transnet Arbitration", ref: "MAT-2024-029", hours: 118.0, budget: 150, attorney: "AN" },
-  { id: 3, name: "Dlamini Estate", ref: "MAT-2024-038", hours: 19.5, budget: 30, attorney: "SM" },
-  { id: 4, name: "SARS Appeal – Venter", ref: "MAT-2024-031", hours: 28.0, budget: 40, attorney: "SM" },
-];
-
+// Activity feed stays simulated (no backend for auto-capture)
 const ACTIVITY_FEED = [
-  { id: 1, type: "email", desc: "Email sent to Khumalo re: court date", time: "2 min ago", auto: true },
-  { id: 2, type: "meeting", desc: "Calendar: Dlamini consultation captured", time: "34 min ago", auto: true },
-  { id: 3, type: "doc", desc: "Document edited: Heads of Argument v3.docx", time: "1 hr ago", auto: true },
-  { id: 4, type: "call", desc: "Call logged: Transnet legal team (18 min)", time: "2 hrs ago", auto: true },
-  { id: 5, type: "invoice", desc: "Invoice #INV-0089 generated for Venter", time: "3 hrs ago", auto: false },
+  { id: 1, type: "email",   desc: "Email sent to Khumalo re: court date",        time: "2 min ago",  auto: true  },
+  { id: 2, type: "meeting", desc: "Calendar: Dlamini consultation captured",      time: "34 min ago", auto: true  },
+  { id: 3, type: "doc",     desc: "Document edited: Heads of Argument v3.docx",  time: "1 hr ago",   auto: true  },
+  { id: 4, type: "call",    desc: "Call logged: Transnet legal team (18 min)",    time: "2 hrs ago",  auto: true  },
+  { id: 5, type: "invoice", desc: "Invoice INV-0089 generated for Venter",        time: "3 hrs ago",  auto: false },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -149,11 +43,113 @@ export function Dashboard() {
   const [timerRunning, setTimerRunning] = useState(false);
   const [visible, setVisible] = useState(false);
 
-  // Entrance animation
+  // API state
+  const [timeEntries, setTimeEntries]   = useState([]);
+  const [matters, setMatters]           = useState([]);
+  const [invoices, setInvoices]         = useState([]);
+  const [loading, setLoading]           = useState(true);
+
+  // Fetch all data in parallel
   useEffect(() => {
-    const t = setTimeout(() => setVisible(true), 50);
-    return () => clearTimeout(t);
+    const fetchAll = async () => {
+      try {
+        const [teRes, mRes, invRes] = await Promise.all([
+          fetch(`${API}/TimeEntry`),
+          fetch(`${API}/Matter`),
+          fetch(`${API}/Invoice`),
+        ]);
+        const [te, m, inv] = await Promise.all([teRes.json(), mRes.json(), invRes.json()]);
+        setTimeEntries(Array.isArray(te) ? te : []);
+        setMatters(Array.isArray(m) ? m : []);
+        setInvoices(Array.isArray(inv) ? inv : []);
+      } catch (e) {
+        console.error("Dashboard fetch error:", e);
+      } finally {
+        setLoading(false);
+        setTimeout(() => setVisible(true), 50);
+      }
+    };
+    fetchAll();
   }, []);
+
+  // ── Derived stats from real data ──
+  // Parse workDate safely regardless of timezone offset in the ISO string
+  const toLocalDateStr = (dateStr) => {
+    if (!dateStr) return "";
+    // Take only the date part before "T" — avoids UTC shift issues
+    return dateStr.split("T")[0];
+  };
+
+  const todayLocal = new Date();
+  const today = `${todayLocal.getFullYear()}-${String(todayLocal.getMonth() + 1).padStart(2, "0")}-${String(todayLocal.getDate()).padStart(2, "0")}`;
+  const thisMonth = today.slice(0, 7); // "YYYY-MM"
+
+  // Hours today from time entries (units * 6 / 60)
+  const todayEntries = timeEntries.filter(e => toLocalDateStr(e.workDate) === today);
+  const hoursToday   = todayEntries.reduce((s, e) => s + (e.units * 6) / 60, 0);
+
+  // Billable this month
+  const monthEntries   = timeEntries.filter(e => toLocalDateStr(e.workDate).startsWith(thisMonth));
+  const billableMonth  = monthEntries.reduce((s, e) => s + (e.billedAmount || 0), 0);
+  const totalMonthAmt  = timeEntries.reduce((s, e) => s + (e.billedAmount || 0), 0);
+  const billingRate    = totalMonthAmt > 0 ? Math.round((billableMonth / totalMonthAmt) * 100) : 0;
+
+  // Active matters
+  const activeMatters = matters.filter(m => {
+    const s = (m.status || "").toLowerCase();
+    return s === "active" || s === "open";
+  });
+
+  // Pending invoices
+  const pendingInvoices  = invoices.filter(i => (i.status || "").toLowerCase() !== "paid");
+  const pendingAmount    = pendingInvoices.reduce((s, i) => s + (i.totalAmount || 0), 0);
+
+  // Recent entries (last 5 sorted by date desc)
+  const recentEntries = [...timeEntries]
+    .sort((a, b) => new Date(toLocalDateStr(b.workDate)) - new Date(toLocalDateStr(a.workDate)))
+    .slice(0, 5)
+    .map(e => ({
+      id: e.id,
+      matter: e.clientName || "—",
+      ref: e.matterNumber || "—",
+      task: e.narrative || "—",
+      attorney: e.attorneyName ? e.attorneyName.split(" ").map((w, i) => i === 0 ? w[0] + "." : w).join(" ") : "—",
+      duration: `${((e.units * 6) / 60).toFixed(1)} hrs`,
+      units: e.units,
+      status: "pending",
+      time: toLocalDateStr(e.workDate) || "—",
+    }));
+
+  // Active matters for progress panel (top 4 by entry count)
+  const matterHours = timeEntries.reduce((acc, e) => {
+    const key = e.matterNumber;
+    if (!key) return acc;
+    acc[key] = (acc[key] || 0) + (e.units * 6) / 60;
+    return acc;
+  }, {});
+
+  const activeMattersList = activeMatters.slice(0, 4).map(m => ({
+    id: m.id,
+    name: m.clientName || m.description || "—",
+    ref: m.matterNumber || "—",
+    hours: parseFloat((matterHours[m.matterNumber] || 0).toFixed(1)),
+    budget: 60, // No budget field in API — use placeholder
+    attorney: (m.clientName || "?")[0].toUpperCase(),
+  }));
+
+  // Monthly billing ring
+  const paidAmount     = invoices.filter(i => (i.status || "").toLowerCase() === "paid").reduce((s, i) => s + (i.totalAmount || 0), 0);
+  const totalBilled    = invoices.reduce((s, i) => s + (i.totalAmount || 0), 0);
+  const billedPct      = totalBilled > 0 ? Math.round((paidAmount / totalBilled) * 100) : 0;
+  const fmtR = (n) => `R ${n.toLocaleString("en-ZA", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+
+  // Stats cards built from real data
+  const STATS = [
+    { id: 1, label: "Hours Today",        value: hoursToday.toFixed(1),         unit: "hrs",  sub: `${todayEntries.length} entries today`,             up: true,  icon: Clock,       accent: "#8DC63F" },
+    { id: 2, label: "Billable This Month",value: fmtR(billableMonth),            unit: "",     sub: `${billingRate}% billing rate`,                     up: true,  icon: DollarSign,  accent: "#8DC63F" },
+    { id: 3, label: "Active Matters",     value: String(activeMatters.length),   unit: "",     sub: `${matters.length} total matters`,                  up: true,  icon: Briefcase,   accent: "#8DC63F" },
+    { id: 4, label: "Pending Invoices",   value: String(pendingInvoices.length), unit: "",     sub: `${fmtR(pendingAmount)} outstanding`,                up: false, icon: FileText,    accent: "#f59e0b" },
+  ];
 
   // Live timer
   useEffect(() => {
@@ -205,7 +201,7 @@ export function Dashboard() {
             Good morning, Amukelani.
           </h2>
           <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.35)", margin: "4px 0 0" }}>
-            You have <span style={{ color: "#8DC63F", fontWeight: 600 }}>7 pending time entries</span> to review today.
+            You have <span style={{ color: "#8DC63F", fontWeight: 600 }}>{loading ? "…" : `${recentEntries.length} recent time entries`}</span> to review today.
           </p>
         </div>
 
@@ -277,7 +273,13 @@ export function Dashboard() {
           marginBottom: "24px",
         }}
       >
-        {STATS.map((stat, i) => {
+        {loading ? (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "20px 0", gap: "10px" }}>
+            <div style={{ width: "20px", height: "20px", border: "2px solid rgba(141,198,63,0.2)", borderTop: "2px solid #8DC63F", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+            <span style={{ color: "rgba(255,255,255,0.3)", fontSize: "12px" }}>Loading dashboard…</span>
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          </div>
+        ) : STATS.map((stat, i) => {
           const Icon = stat.icon;
           return (
             <div
@@ -351,8 +353,6 @@ export function Dashboard() {
           );
         })}
       </div>
-
-      {/* ── Main grid ── */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "20px" }}>
 
         {/* Left column */}
@@ -403,11 +403,15 @@ export function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {RECENT_ENTRIES.map((entry, i) => (
+                {loading ? (
+                  <tr><td colSpan={6} style={{ padding: "32px", textAlign: "center", color: "rgba(255,255,255,0.25)", fontSize: "13px" }}>Loading entries…</td></tr>
+                ) : recentEntries.length === 0 ? (
+                  <tr><td colSpan={6} style={{ padding: "32px", textAlign: "center", color: "rgba(255,255,255,0.25)", fontSize: "13px" }}>No time entries yet.</td></tr>
+                ) : recentEntries.map((entry, i) => (
                   <tr
                     key={entry.id}
                     style={{
-                      borderBottom: i < RECENT_ENTRIES.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
+                      borderBottom: i < recentEntries.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
                       transition: "background 0.15s ease",
                     }}
                     onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(141,198,63,0.04)")}
@@ -470,8 +474,12 @@ export function Dashboard() {
               </div>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-              {ACTIVE_MATTERS.map((matter) => {
-                const pct = Math.min((matter.hours / matter.budget) * 100, 100);
+              {loading ? (
+                <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.25)", textAlign: "center", padding: "16px 0" }}>Loading matters…</p>
+              ) : activeMattersList.length === 0 ? (
+                <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.25)", textAlign: "center", padding: "16px 0" }}>No active matters.</p>
+              ) : activeMattersList.map((matter) => {
+                const pct = Math.min(matter.budget > 0 ? (matter.hours / matter.budget) * 100 : 0, 100);
                 const overBudget = pct >= 90;
                 return (
                   <div key={matter.id}>
@@ -541,20 +549,20 @@ export function Dashboard() {
                     fill="none"
                     stroke="#8DC63F"
                     strokeWidth="10"
-                    strokeDasharray={`${2 * Math.PI * 48 * 0.87} ${2 * Math.PI * 48}`}
+                    strokeDasharray={`${2 * Math.PI * 48 * (billedPct / 100)} ${2 * Math.PI * 48}`}
                     strokeLinecap="round"
                   />
                 </svg>
                 <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                  <span style={{ fontSize: "20px", fontWeight: 700, color: "#8DC63F" }}>87%</span>
+                  <span style={{ fontSize: "20px", fontWeight: 700, color: "#8DC63F" }}>{billedPct}%</span>
                   <span style={{ fontSize: "9px", color: "rgba(255,255,255,0.35)", letterSpacing: "1px" }}>BILLED</span>
                 </div>
               </div>
             </div>
             {[
-              { label: "Billed", value: "R 142,800", color: "#8DC63F" },
-              { label: "Unbilled", value: "R 21,200", color: "rgba(255,255,255,0.2)" },
-              { label: "Outstanding", value: "R 68,400", color: "#f59e0b" },
+              { label: "Collected",    value: fmtR(paidAmount),                  color: "#8DC63F" },
+              { label: "Outstanding",  value: fmtR(pendingAmount),               color: "#f59e0b" },
+              { label: "Total Billed", value: fmtR(totalBilled),                 color: "rgba(255,255,255,0.2)" },
             ].map((row) => (
               <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>

@@ -1,39 +1,19 @@
 import { useState, useEffect } from "react";
 import { TrendingUp, TrendingDown, Users, Clock, DollarSign, BarChart3, ChevronDown } from "lucide-react";
 
-const ATTORNEYS = [
-  { name: "Amukelani Ndlovu",  initials: "AN", hours: 42.5, target: 50, billable: 38.0, rate: 2200, matters: 8,  invoiced: 83600 },
-  { name: "Sipho Mokoena",     initials: "SM", hours: 35.0, target: 50, billable: 29.5, rate: 1900, matters: 6,  invoiced: 56050 },
-  { name: "Thabo Sithole",     initials: "TS", hours: 28.0, target: 40, billable: 22.0, rate: 1800, matters: 5,  invoiced: 39600 },
-];
+const API = "https://localhost:7291/api";
 
-const MONTHLY = [
-  { month: "Nov", hours: 120, billed: 210000 },
-  { month: "Dec", hours: 85,  billed: 148750 },
-  { month: "Jan", hours: 132, billed: 231000 },
-  { month: "Feb", hours: 118, billed: 206500 },
-  { month: "Mar", hours: 145, billed: 253750 },
-  { month: "Apr", hours: 138, billed: 241500 },
-  { month: "May", hours: 105, billed: 179250 },
-];
-
-const ACTIVITY_BREAKDOWN = [
-  { type: "Drafting",     hours: 42,  color: "#8DC63F" },
-  { type: "Research",     hours: 31,  color: "#60a5fa" },
-  { type: "Court",        hours: 18,  color: "#a78bfa" },
-  { type: "Meetings",     hours: 24,  color: "#f472b6" },
-  { type: "Consultation", hours: 15,  color: "#34d399" },
-  { type: "Comms",        hours: 12,  color: "#fb923c" },
-  { type: "Admin",        hours: 8,   color: "#facc15" },
-];
-
-const MATTER_PERF = [
-  { name: "Transnet Arbitration", ref: "MAT-2024-029", hours: 118, billed: 295000, status: "active" },
-  { name: "Khumalo v Nedbank",    ref: "MAT-2024-041", hours: 42,  billed: 92400,  status: "active" },
-  { name: "SARS Appeal – Venter", ref: "MAT-2024-031", hours: 28,  billed: 56000,  status: "active" },
-  { name: "Dlamini Estate",       ref: "MAT-2024-038", hours: 19,  billed: 34200,  status: "active" },
-  { name: "Mbeki Family Trust",   ref: "MAT-2024-045", hours: 8,   billed: 14400,  status: "active" },
-];
+const CATEGORY_COLORS = {
+  Drafting:     "#8DC63F",
+  Research:     "#60a5fa",
+  Court:        "#a78bfa",
+  Meeting:      "#f472b6",
+  Consultation: "#34d399",
+  Communication:"#fb923c",
+  Call:         "#fb923c",
+  Email:        "#facc15",
+  Admin:        "#94a3b8",
+};
 
 function fmtR(n) { return `R ${Math.round(n).toLocaleString()}`; }
 
@@ -103,18 +83,122 @@ function DonutChart({ data }) {
 export function Reports() {
   const [period, setPeriod] = useState("This Month");
   const [visible, setVisible] = useState(false);
+  const [timeEntries, setTimeEntries] = useState([]);
+  const [attorneys, setAttorneys]     = useState([]);
+  const [invoices, setInvoices]       = useState([]);
+  const [loading, setLoading]         = useState(true);
 
-  useEffect(() => { setTimeout(() => setVisible(true), 50); }, []);
+  useEffect(() => {
+    const fetchAll = async () => {
+      try {
+        const [teRes, aRes, invRes] = await Promise.all([
+          fetch(`${API}/TimeEntry`),
+          fetch(`${API}/Attorney`),
+          fetch(`${API}/Invoice`),
+        ]);
+        const [te, a, inv] = await Promise.all([teRes.json(), aRes.json(), invRes.json()]);
+        setTimeEntries(Array.isArray(te)  ? te  : []);
+        setAttorneys(Array.isArray(a)     ? a   : []);
+        setInvoices(Array.isArray(inv)    ? inv : []);
+      } catch (e) {
+        console.error("Reports fetch error:", e);
+      } finally {
+        setLoading(false);
+        setTimeout(() => setVisible(true), 50);
+      }
+    };
+    fetchAll();
+  }, []);
 
-  const totalHours   = ATTORNEYS.reduce((s, a) => s + a.hours, 0);
-  const totalBill    = ATTORNEYS.reduce((s, a) => s + a.billable * a.rate, 0);
-  const totalInvoice = ATTORNEYS.reduce((s, a) => s + a.invoiced, 0);
-  const avgBillRate  = Math.round((ATTORNEYS.reduce((s, a) => s + (a.billable / a.hours), 0) / ATTORNEYS.length) * 100);
+  // ── Date helpers ──────────────────────────────────────────────────────────
+  const toDateStr = (d) => (d || "").split("T")[0];
+  const now       = new Date();
+  const thisYear  = now.getFullYear();
+  const thisMonth = now.getMonth(); // 0-indexed
+
+  const inPeriod = (dateStr) => {
+    if (!dateStr) return false;
+    const d = new Date(toDateStr(dateStr));
+    if (period === "This Month")  return d.getFullYear() === thisYear && d.getMonth() === thisMonth;
+    if (period === "Last Month")  { const lm = thisMonth === 0 ? 11 : thisMonth - 1; const ly = thisMonth === 0 ? thisYear - 1 : thisYear; return d.getFullYear() === ly && d.getMonth() === lm; }
+    if (period === "Q1 2026")     return d.getFullYear() === 2026 && d.getMonth() <= 2;
+    if (period === "Q4 2025")     return d.getFullYear() === 2025 && d.getMonth() >= 9;
+    if (period === "This Year")   return d.getFullYear() === thisYear;
+    return true;
+  };
+
+  const periodEntries = timeEntries.filter(e => inPeriod(e.workDate));
+
+  // ── KPI totals ────────────────────────────────────────────────────────────
+  const totalHours   = periodEntries.reduce((s, e) => s + (e.units * 6) / 60, 0);
+  const totalBill    = periodEntries.reduce((s, e) => s + (e.billedAmount || 0), 0);
+  const totalInvoice = invoices.filter(i => inPeriod(i.createdAt)).reduce((s, i) => s + (i.totalAmount || 0), 0);
+  const avgBillRate  = totalHours > 0 ? Math.round((totalBill / (totalHours * (periodEntries[0]?.hourlyRate || 2000))) * 100) : 0;
+
+  // ── Monthly performance (last 7 months) ───────────────────────────────────
+  const MONTHLY = Array.from({ length: 7 }, (_, i) => {
+    const d   = new Date(thisYear, thisMonth - (6 - i), 1);
+    const yr  = d.getFullYear();
+    const mo  = d.getMonth();
+    const key = `${yr}-${String(mo + 1).padStart(2, "0")}`;
+    const ents = timeEntries.filter(e => toDateStr(e.workDate).startsWith(key));
+    return {
+      month:  d.toLocaleString("default", { month: "short" }),
+      hours:  parseFloat(ents.reduce((s, e) => s + (e.units * 6) / 60, 0).toFixed(1)),
+      billed: ents.reduce((s, e) => s + (e.billedAmount || 0), 0),
+    };
+  });
+
+  // ── Activity breakdown (donut) ────────────────────────────────────────────
+  const categoryTotals = periodEntries.reduce((acc, e) => {
+    const cat = e.category || "Other";
+    acc[cat]  = (acc[cat] || 0) + (e.units * 6) / 60;
+    return acc;
+  }, {});
+  const ACTIVITY_BREAKDOWN = Object.entries(categoryTotals)
+    .map(([type, hrs]) => ({ type, hours: parseFloat(hrs.toFixed(1)), color: CATEGORY_COLORS[type] || "#94a3b8" }))
+    .sort((a, b) => b.hours - a.hours);
+
+  // ── Attorney performance ──────────────────────────────────────────────────
+  const TARGET_HRS = 50; // default monthly target — no target field in API
+  const attorneyStats = attorneys.map(a => {
+    const aEntries  = periodEntries.filter(e => e.attorneyName === a.name);
+    const hrs       = parseFloat(aEntries.reduce((s, e) => s + (e.units * 6) / 60, 0).toFixed(1));
+    const billed    = aEntries.reduce((s, e) => s + (e.billedAmount || 0), 0);
+    const matterSet = new Set(aEntries.map(e => e.matterNumber).filter(Boolean));
+    const initials  = a.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+    return { name: a.name, initials, hours: hrs, target: TARGET_HRS, billable: hrs, rate: a.hourlyRate, matters: matterSet.size, invoiced: billed };
+  }).filter(a => a.hours > 0).sort((a, b) => b.hours - a.hours);
+
+  // ── Top matters by billed amount ──────────────────────────────────────────
+  const matterBilled = periodEntries.reduce((acc, e) => {
+    const key = e.matterNumber;
+    if (!key) return acc;
+    if (!acc[key]) acc[key] = { name: e.clientName || key, ref: key, hours: 0, billed: 0 };
+    acc[key].hours  += (e.units * 6) / 60;
+    acc[key].billed += e.billedAmount || 0;
+    return acc;
+  }, {});
+  const MATTER_PERF = Object.values(matterBilled)
+    .map(m => ({ ...m, hours: parseFloat(m.hours.toFixed(1)) }))
+    .sort((a, b) => b.billed - a.billed)
+    .slice(0, 5);
 
   const fadeIn = (d = 0) => ({ opacity: visible ? 1 : 0, transform: visible ? "translateY(0)" : "translateY(12px)", transition: `opacity 0.4s ease ${d}ms, transform 0.4s ease ${d}ms` });
 
   return (
     <div style={{ minHeight: "100%", background: "#080D1A", padding: "28px 32px", fontFamily: "'Inter', sans-serif", color: "#fff" }}>
+
+      {/* Loading */}
+      {loading && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "300px", flexDirection: "column", gap: "12px" }}>
+          <div style={{ width: "32px", height: "32px", border: "3px solid rgba(141,198,63,0.2)", borderTop: "3px solid #8DC63F", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+          <p style={{ color: "rgba(255,255,255,0.35)", fontSize: "13px" }}>Loading reports…</p>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      )}
+
+      {!loading && (<>
 
       {/* Header */}
       <div style={{ ...fadeIn(0), display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "24px" }}>
@@ -135,10 +219,10 @@ export function Reports() {
       {/* KPI cards */}
       <div style={{ ...fadeIn(80), display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "14px", marginBottom: "24px" }}>
         {[
-          { label: "Total Hours",       value: `${totalHours} hrs`,     sub: "team this month",  icon: Clock,       color: "#8DC63F", trend: "+8%" },
-          { label: "Billable Value",    value: fmtR(totalBill),         sub: "from time entries",icon: DollarSign,  color: "#8DC63F", trend: "+12%" },
-          { label: "Invoiced",          value: fmtR(totalInvoice),      sub: "sent to clients",  icon: BarChart3,   color: "#60a5fa", trend: "+5%" },
-          { label: "Avg Billing Rate",  value: `${avgBillRate}%`,       sub: "billable vs total",icon: TrendingUp,  color: "#8DC63F", trend: "+3%" },
+          { label: "Total Hours",      value: `${totalHours.toFixed(1)} hrs`, sub: "team this period",  icon: Clock,      color: "#8DC63F", trend: "" },
+          { label: "Billable Value",   value: fmtR(totalBill),                sub: "from time entries", icon: DollarSign, color: "#8DC63F", trend: "" },
+          { label: "Invoiced",         value: fmtR(totalInvoice),             sub: "sent to clients",   icon: BarChart3,  color: "#60a5fa", trend: "" },
+          { label: "Avg Billing Rate", value: `${avgBillRate}%`,              sub: "billable vs total", icon: TrendingUp, color: "#8DC63F", trend: "" },
         ].map((c) => {
           const Icon = c.icon;
           return (
@@ -148,7 +232,7 @@ export function Reports() {
                 <div style={{ width: "32px", height: "32px", borderRadius: "7px", background: `${c.color}15`, border: `1px solid ${c.color}25`, display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <Icon style={{ width: "15px", height: "15px", color: c.color }} />
                 </div>
-                <span style={{ fontSize: "11px", color: "#8DC63F", fontWeight: 600 }}>{c.trend}</span>
+                {c.trend && <span style={{ fontSize: "11px", color: "#8DC63F", fontWeight: 600 }}>{c.trend}</span>}
               </div>
               <p style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)", letterSpacing: "1.5px", textTransform: "uppercase", margin: 0 }}>{c.label}</p>
               <p style={{ fontSize: "22px", fontWeight: 700, color: "#fff", margin: "4px 0 2px" }}>{c.value}</p>
@@ -196,9 +280,11 @@ export function Reports() {
           <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#fff", margin: "0 0 4px" }}>Attorney Performance</h3>
           <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.3)", margin: "0 0 20px" }}>Hours logged vs monthly target</p>
           <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
-            {ATTORNEYS.map((a) => {
-              const pct = Math.round((a.hours / a.target) * 100);
-              const billRate = Math.round((a.billable / a.hours) * 100);
+            {attorneyStats.length === 0 ? (
+              <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.25)", textAlign: "center", padding: "16px 0" }}>No data for this period.</p>
+            ) : attorneyStats.map((a) => {
+              const pct      = Math.round((a.hours / a.target) * 100);
+              const billRate = a.hours > 0 ? Math.round((a.billable / a.hours) * 100) : 0;
               const overTarget = pct >= 100;
               return (
                 <div key={a.name}>
@@ -231,7 +317,9 @@ export function Reports() {
           <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#fff", margin: "0 0 4px" }}>Top Matters by Revenue</h3>
           <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.3)", margin: "0 0 20px" }}>Highest billing matters this period</p>
           <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-            {MATTER_PERF.map((m, idx) => {
+            {MATTER_PERF.length === 0 ? (
+              <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.25)", textAlign: "center", padding: "16px 0" }}>No data for this period.</p>
+            ) : MATTER_PERF.map((m, idx) => {
               const maxBilled = MATTER_PERF[0].billed;
               const pct = (m.billed / maxBilled) * 100;
               return (
@@ -253,6 +341,7 @@ export function Reports() {
           </div>
         </div>
       </div>
+      </>)}
     </div>
   );
 }

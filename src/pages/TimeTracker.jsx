@@ -4,22 +4,8 @@ import {
   Clock, Save, Trash2, CheckCircle, AlertCircle,
 } from "lucide-react";
 
-const MATTERS = [
-  { id: 1, ref: "MAT-2024-041", name: "Khumalo v Nedbank",     rate: 2200 },
-  { id: 2, ref: "MAT-2024-038", name: "Dlamini Estate",         rate: 1800 },
-  { id: 3, ref: "MAT-2024-029", name: "Transnet Arbitration",   rate: 2500 },
-  { id: 4, ref: "MAT-2024-045", name: "Mbeki Family Trust",     rate: 1800 },
-  { id: 5, ref: "MAT-2024-031", name: "SARS Appeal – Venter",   rate: 2000 },
-];
-
+const API = "https://localhost:7291/api";
 const TASK_TYPES = ["Drafting","Research","Court","Meeting","Consultation","Communication","Administration"];
-const ATTORNEYS = ["Amukelani Ndlovu","Sipho Mokoena","Thabo Sithole"];
-
-const INITIAL_SESSIONS = [
-  { id: 1, matter: { id:1, ref:"MAT-2024-041", name:"Khumalo v Nedbank", rate:2200 }, attorney: "Amukelani Ndlovu", type: "Drafting",     desc: "Drafting heads of argument",    elapsed: 9000,  saved: true, start: "09:00", end: "11:30" },
-  { id: 2, matter: { id:3, ref:"MAT-2024-029", name:"Transnet Arbitration", rate:2500 }, attorney: "Amukelani Ndlovu", type: "Research",     desc: "Reviewing discovery documents", elapsed: 10800, saved: true, start: "13:00", end: "16:00" },
-  { id: 3, matter: { id:2, ref:"MAT-2024-038", name:"Dlamini Estate", rate:1800 }, attorney: "Sipho Mokoena",    type: "Consultation", desc: "Client consultation call",       elapsed: 1800,  saved: true, start: "11:45", end: "12:15" },
-];
 
 function fmtTime(sec) {
   const h = Math.floor(sec / 3600).toString().padStart(2, "0");
@@ -51,21 +37,55 @@ function Select({ value, onChange, options, placeholder }) {
 }
 
 export function TimeTracker() {
-  const [elapsed, setElapsed] = useState(0);
-  const [running, setRunning] = useState(false);
-  const [paused, setPaused] = useState(false);
-  const intervalRef = useRef(null);
-  const startTimeRef = useRef(null);
-  const [matterId, setMatterId] = useState("");
-  const [attorney, setAttorney] = useState(ATTORNEYS[0]);
-  const [taskType, setTaskType] = useState("");
-  const [desc, setDesc] = useState("");
-  const [sessions, setSessions] = useState(INITIAL_SESSIONS);
-  const [savedMsg, setSavedMsg] = useState(false);
-  const [visible, setVisible] = useState(false);
+  const [elapsed, setElapsed]     = useState(0);
+  const [running, setRunning]     = useState(false);
+  const [paused, setPaused]       = useState(false);
+  const intervalRef               = useRef(null);
+  const startTimeRef              = useRef(null);
 
-  useEffect(() => { setTimeout(() => setVisible(true), 50); }, []);
+  // Form state
+  const [matterId, setMatterId]   = useState("");
+  const [attorneyId, setAttorneyId] = useState("");
+  const [taskType, setTaskType]   = useState("");
+  const [desc, setDesc]           = useState("");
 
+  // API data
+  const [matters, setMatters]     = useState([]);
+  const [attorneys, setAttorneys] = useState([]);
+  const [sessions, setSessions]   = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [saving, setSaving]       = useState(false);
+  const [savedMsg, setSavedMsg]   = useState(false);
+  const [errorMsg, setErrorMsg]   = useState(null);
+  const [visible, setVisible]     = useState(false);
+
+  // Fetch matters and attorneys on mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [mRes, aRes] = await Promise.all([
+          fetch(`${API}/Matter`),
+          fetch(`${API}/Attorney`),
+        ]);
+        const [m, a] = await Promise.all([mRes.json(), aRes.json()]);
+        const activeMatter = (Array.isArray(m) ? m : []).filter(mx => (mx.status || "").toLowerCase() !== "closed");
+        console.log("Matters loaded:", activeMatter);
+        console.log("Attorneys loaded:", a);
+        setMatters(activeMatter);
+        setAttorneys(Array.isArray(a) ? a : []);
+        // Default to first attorney
+        if (a.length > 0) setAttorneyId(String(a[0].id));
+      } catch (e) {
+        console.error("TimeTracker fetch error:", e);
+      } finally {
+        setLoading(false);
+        setTimeout(() => setVisible(true), 50);
+      }
+    };
+    fetchData();
+  }, []);
+
+  // Timer logic
   useEffect(() => {
     if (running && !paused) {
       intervalRef.current = setInterval(() => setElapsed((e) => e + 1), 1000);
@@ -81,6 +101,7 @@ export function TimeTracker() {
     setRunning(true);
     setPaused(false);
     setSavedMsg(false);
+    setErrorMsg(null);
   };
 
   const handlePause = () => { if (running) setPaused((p) => !p); };
@@ -91,26 +112,73 @@ export function TimeTracker() {
     clearInterval(intervalRef.current);
   };
 
-  const handleSave = () => {
-    if (elapsed === 0) return;
-    const matter = MATTERS.find((m) => m.id === Number(matterId));
-    const start = startTimeRef.current || new Date();
-    const end = new Date();
-    const fmt = (d) => d.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" });
-    setSessions((prev) => [{ id: Date.now(), matter, attorney, type: taskType, desc: desc || `${taskType} — ${matter?.name}`, elapsed, saved: true, start: fmt(start), end: fmt(end) }, ...prev]);
-    setElapsed(0); setRunning(false); setPaused(false); setDesc(""); setTaskType(""); setMatterId("");
-    startTimeRef.current = null;
-    setSavedMsg(true);
-    setTimeout(() => setSavedMsg(false), 3000);
+  const handleSave = async () => {
+    if (elapsed === 0 || !matterId || !taskType) return;
+    const matter   = matters.find((m) => m.id === Number(matterId));
+    const attorney = attorneys.find((a) => a.id === Number(attorneyId));
+    const units    = secToUnits(elapsed);
+    const start    = startTimeRef.current || new Date();
+    const end      = new Date();
+    const fmt      = (d) => d.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" });
+
+    const payload = {
+      attorneyId: Number(attorneyId),
+      matterId:   Number(matterId),
+      narrative:  desc || `${taskType} — ${matter?.clientName || matter?.matterNumber}`,
+      category:   taskType,
+      units,
+      workDate:   new Date().toISOString(),
+    };
+
+    setSaving(true);
+    setErrorMsg(null);
+    try {
+      const res = await fetch(`${API}/TimeEntry`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error("Save failed");
+
+      // Add to local session log for immediate feedback
+      setSessions((prev) => [{
+        id:       Date.now(),
+        matter:   { id: matter?.id, ref: matter?.matterNumber, name: matter?.clientName, rate: attorney?.hourlyRate || 0 },
+        attorney: attorney?.name || "—",
+        type:     taskType,
+        desc:     payload.narrative,
+        elapsed,
+        saved:    true,
+        start:    fmt(start),
+        end:      fmt(end),
+      }, ...prev]);
+
+      // Reset form
+      setElapsed(0); setRunning(false); setPaused(false);
+      setDesc(""); setTaskType(""); setMatterId("");
+      startTimeRef.current = null;
+      setSavedMsg(true);
+      setTimeout(() => setSavedMsg(false), 3000);
+    } catch {
+      setErrorMsg("Failed to save entry. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDelete = (id) => setSessions((prev) => prev.filter((s) => s.id !== id));
 
-  const totalToday = sessions.reduce((s, e) => s + e.elapsed, 0);
-  const totalUnits = sessions.reduce((s, e) => s + secToUnits(e.elapsed), 0);
-  const totalValue = sessions.reduce((s, e) => s + parseFloat(secToHrs(e.elapsed)) * (e.matter?.rate || 0), 0);
-  const selectedMatter = MATTERS.find((m) => m.id === Number(matterId));
-  const canStart = !!(matterId && taskType);
+  const totalToday    = sessions.reduce((s, e) => s + e.elapsed, 0);
+  const totalUnits    = sessions.reduce((s, e) => s + secToUnits(e.elapsed), 0);
+  const totalValue    = sessions.reduce((s, e) => s + parseFloat(secToHrs(e.elapsed)) * (e.matter?.rate || 0), 0);
+  const selectedMatter   = matters.find((m) => m.id === Number(matterId));
+  const selectedAttorney = attorneys.find((a) => a.id === Number(attorneyId));
+  const canStart      = !!(matterId && taskType);
+
+  // Matter options shaped for Select
+  const matterOptions = matters.map(m => ({ id: m.id, ref: m.matterNumber, name: m.clientName }));
+  // Attorney options — use name as ref so it displays cleanly
+  const attorneyOptions = attorneys.map(a => ({ id: a.id, ref: a.name, name: `R ${Number(a.hourlyRate).toLocaleString()}/hr` }));
 
   const r = 80; const circ = 2 * Math.PI * r;
   const pct = Math.min(elapsed / 28800, 1);
@@ -171,11 +239,18 @@ export function TimeTracker() {
             </div>
 
             {elapsed > 0 && !running && (
-              <button onClick={handleSave}
-                style={{ width: "100%", fontSize: "14px", fontWeight: 700, color: "#0A0F1E", background: "#8DC63F", border: "none", borderRadius: "8px", padding: "13px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+              <button onClick={handleSave} disabled={saving}
+                style={{ width: "100%", fontSize: "14px", fontWeight: 700, color: "#0A0F1E", background: saving ? "rgba(141,198,63,0.5)" : "#8DC63F", border: "none", borderRadius: "8px", padding: "13px", cursor: saving ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
                 <Save style={{ width: "16px", height: "16px" }} />
-                Save Entry — R {fmtRand(parseFloat(secToHrs(elapsed)) * (selectedMatter?.rate || 0))}
+                {saving ? "Saving…" : `Save Entry — R ${fmtRand(parseFloat(secToHrs(elapsed)) * (selectedAttorney?.hourlyRate || 0))}`}
               </button>
+            )}
+
+            {errorMsg && (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", marginTop: "10px" }}>
+                <AlertCircle style={{ width: "14px", height: "14px", color: "#ef4444" }} />
+                <span style={{ fontSize: "12px", color: "#ef4444" }}>{errorMsg}</span>
+              </div>
             )}
 
             {savedMsg && (
@@ -192,11 +267,11 @@ export function TimeTracker() {
             <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
               <div>
                 <label style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", letterSpacing: "1px", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>Client Matter <span style={{ color: "#8DC63F" }}>*</span></label>
-                <Select value={matterId} onChange={setMatterId} options={MATTERS} placeholder="Select matter..." />
+                <Select value={matterId} onChange={setMatterId} options={matterOptions} placeholder={loading ? "Loading matters…" : matterOptions.length === 0 ? "No matters found" : "Select matter..."} />
               </div>
               <div>
                 <label style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", letterSpacing: "1px", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>Attorney</label>
-                <Select value={attorney} onChange={setAttorney} options={ATTORNEYS} />
+                <Select value={attorneyId} onChange={setAttorneyId} options={attorneyOptions} placeholder={loading ? "Loading attorneys…" : attorneyOptions.length === 0 ? "No attorneys found" : "Select attorney..."} />
               </div>
               <div>
                 <label style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", letterSpacing: "1px", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>Task Type <span style={{ color: "#8DC63F" }}>*</span></label>
@@ -210,7 +285,7 @@ export function TimeTracker() {
               {selectedMatter && elapsed > 0 && (
                 <div style={{ background: "rgba(141,198,63,0.07)", border: "1px solid rgba(141,198,63,0.2)", borderRadius: "7px", padding: "10px 14px", display: "flex", justifyContent: "space-between" }}>
                   <span style={{ fontSize: "12px", color: "rgba(255,255,255,0.4)" }}>Running total</span>
-                  <span style={{ fontSize: "13px", fontWeight: 700, color: "#8DC63F" }}>R {fmtRand(parseFloat(secToHrs(elapsed)) * selectedMatter.rate)}</span>
+                  <span style={{ fontSize: "13px", fontWeight: 700, color: "#8DC63F" }}>R {fmtRand(parseFloat(secToHrs(elapsed)) * (selectedAttorney?.hourlyRate || 0))}</span>
                 </div>
               )}
               {(!matterId || !taskType) && (

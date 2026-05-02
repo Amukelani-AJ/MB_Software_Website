@@ -5,25 +5,11 @@ import {
   Plus,
   ChevronDown,
  
-  Download,
-  X,
+ X,
 } from "lucide-react";
 
-// ── Mock Data ──────────────────────────────────────────────────────────────────
-const MOCK_ENTRIES = [
-  { id: 1, matter: "Khumalo v Nedbank", ref: "MAT-2024-041", task: "Drafting heads of argument", attorney: "Amukelani Ndlovu", type: "Drafting", date: "2026-05-01", start: "09:00", end: "11:30", duration: 2.5, units: 25, rate: 1800, status: "approved" },
-  { id: 2, matter: "Dlamini Estate", ref: "MAT-2024-038", task: "Client consultation call", attorney: "Sipho Mokoena", type: "Consultation", date: "2026-05-01", start: "11:45", end: "12:15", duration: 0.5, units: 5, rate: 1800, status: "pending" },
-  { id: 3, matter: "Transnet Arbitration", ref: "MAT-2024-029", task: "Reviewing discovery documents", attorney: "Amukelani Ndlovu", type: "Research", date: "2026-05-01", start: "13:00", end: "16:00", duration: 3.0, units: 30, rate: 2200, status: "approved" },
-  { id: 4, matter: "Mbeki Family Trust", ref: "MAT-2024-045", task: "Email correspondence with client", attorney: "Thabo Sithole", type: "Communication", date: "2026-05-01", start: "16:10", end: "16:22", duration: 0.2, units: 2, rate: 1800, status: "pending" },
-  { id: 5, matter: "SARS Appeal – Venter", ref: "MAT-2024-031", task: "Research: Tax tribunal precedents", attorney: "Sipho Mokoena", type: "Research", date: "2026-04-30", start: "08:00", end: "09:30", duration: 1.5, units: 15, rate: 2000, status: "approved" },
-  { id: 6, matter: "Khumalo v Nedbank", ref: "MAT-2024-041", task: "Court appearance – Motion court", attorney: "Amukelani Ndlovu", type: "Court", date: "2026-04-30", start: "10:00", end: "13:00", duration: 3.0, units: 30, rate: 2500, status: "approved" },
-  { id: 7, matter: "Transnet Arbitration", ref: "MAT-2024-029", task: "Pre-arbitration meeting with client", attorney: "Amukelani Ndlovu", type: "Meeting", date: "2026-04-29", start: "14:00", end: "15:30", duration: 1.5, units: 15, rate: 2200, status: "approved" },
-  { id: 8, matter: "Dlamini Estate", ref: "MAT-2024-038", task: "Drafting letters of executorship", attorney: "Sipho Mokoena", type: "Drafting", date: "2026-04-29", start: "09:30", end: "11:00", duration: 1.5, units: 15, rate: 1800, status: "pending" },
-  { id: 9, matter: "SARS Appeal – Venter", ref: "MAT-2024-031", task: "Phone call with SARS official", attorney: "Thabo Sithole", type: "Communication", date: "2026-04-28", start: "10:15", end: "10:45", duration: 0.5, units: 5, rate: 2000, status: "approved" },
-  { id: 10, matter: "Mbeki Family Trust", ref: "MAT-2024-045", task: "Trust deed review and annotation", attorney: "Thabo Sithole", type: "Research", date: "2026-04-28", start: "13:00", end: "15:00", duration: 2.0, units: 20, rate: 1800, status: "rejected" },
-];
+const API = "https://localhost:7291/api";
 
-const ATTORNEYS = ["All Attorneys", "Amukelani Ndlovu", "Sipho Mokoena", "Thabo Sithole"];
 const STATUSES = ["All Status", "approved", "pending", "rejected"];
 const TYPES = ["All Types", "Drafting", "Research", "Court", "Meeting", "Consultation", "Communication"];
 
@@ -65,7 +51,7 @@ function Select({ value, onChange, options }) {
   );
 }
 
-function Modal({ entry, onClose }) {
+function Modal({ entry, onClose, onDelete, onEdit }) {
   if (!entry) return null;
   const s = STATUS_STYLE[entry.status];
   return (
@@ -108,8 +94,239 @@ function Modal({ entry, onClose }) {
             {entry.status}
           </span>
           <div style={{ display: "flex", gap: "8px" }}>
-            <button style={{ fontSize: "12px", color: "#8DC63F", background: "rgba(141,198,63,0.1)", border: "1px solid rgba(141,198,63,0.3)", borderRadius: "6px", padding: "7px 16px", cursor: "pointer" }}>Edit</button>
-            <button style={{ fontSize: "12px", color: "#ef4444", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "6px", padding: "7px 16px", cursor: "pointer" }}>Delete</button>
+            <button onClick={() => onEdit(entry)} style={{ fontSize: "12px", color: "#8DC63F", background: "rgba(141,198,63,0.1)", border: "1px solid rgba(141,198,63,0.3)", borderRadius: "6px", padding: "7px 16px", cursor: "pointer" }}>Edit</button>
+            <button onClick={() => onDelete(entry)} style={{ fontSize: "12px", color: "#ef4444", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "6px", padding: "7px 16px", cursor: "pointer" }}>Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+// TimeEntryDTO gives units + hourlyRate + billedAmount directly.
+// duration in hours = units * 6 / 60
+function mapEntry(e) {
+  // Handle both PascalCase (C# default) and camelCase
+  const id          = e.Id          ?? e.id;
+  const attorneyId  = e.AttorneyId  ?? e.attorneyId;
+  const matterId    = e.MatterId    ?? e.matterId;
+  const clientName  = e.ClientName  ?? e.clientName;
+  const matterNum   = e.MatterNumber ?? e.matterNumber;
+  const narrative   = e.Narrative   ?? e.narrative;
+  const category    = e.Category    ?? e.category;
+  const units       = e.Units       ?? e.units;
+  const hourlyRate  = e.HourlyRate  ?? e.hourlyRate;
+  const billedAmt   = e.BilledAmount ?? e.billedAmount;
+  const workDate    = e.WorkDate    ?? e.workDate;
+  const attName     = e.AttorneyName ?? e.attorneyName;
+
+  return {
+    id,
+    attorneyId,
+    matterId,
+    matter: clientName || "—",
+    ref: matterNum || "—",
+    task: narrative || "—",
+    attorney: attName || "—",
+    type: category || "Other",
+    date: workDate ? workDate.split("T")[0] : "—",
+    duration: parseFloat(((units * 6) / 60).toFixed(2)),
+    units,
+    rate: hourlyRate,
+    billedAmount: billedAmt,
+    status: "pending",
+  };
+}
+
+
+// ── Module-scope shared styles (prevents focus-loss bug) ──────────────────────
+const inputStyle = {
+  width: "100%", background: "#080D1A",
+  border: "1px solid rgba(141,198,63,0.22)",
+  borderRadius: "7px", color: "#fff", fontSize: "13px",
+  padding: "10px 12px", outline: "none",
+  fontFamily: "'Inter', sans-serif", boxSizing: "border-box",
+};
+
+function FieldLabel({ label, required, children }) {
+  return (
+    <div>
+      <label style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", letterSpacing: "1px", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>
+        {label}{required && <span style={{ color: "#8DC63F" }}> *</span>}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+// ── Export CSV ─────────────────────────────────────────────────────────────────
+function exportToCSV(entries) {
+  const headers = ["Matter", "Ref", "Task", "Attorney", "Type", "Date", "Units", "Duration (hrs)", "Rate (R)", "Value (R)", "Status"];
+  const rows = entries.map((e) => [
+    e.matter, e.ref, `"${e.task}"`, e.attorney, e.type, e.date,
+    e.units, e.duration, e.rate,
+    (e.duration * e.rate).toFixed(2), e.status,
+  ]);
+  const csv = [headers, ...rows].map((r) => r.join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href = url; a.download = `time-entries-${new Date().toISOString().split("T")[0]}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+}
+
+// ── Time Entry Form Modal ──────────────────────────────────────────────────────
+function TimeEntryModal({ entry, onClose, onSave, saving }) {
+  const isEdit = !!entry;
+
+  const [form, setForm] = useState({
+    attorneyId: entry?.attorneyId || "",
+    matterId:   entry?.matterId   || "",
+    narrative:  entry?.task       || "",
+    category:   entry?.type       || "Drafting",
+    units:      entry?.units      || "",
+    workDate:   entry?.date       || new Date().toISOString().split("T")[0],
+  });
+
+  const [attorneys, setAttorneys] = useState([]);
+  const [matters,   setMatters]   = useState([]);
+  const [loadingData, setLoadingData] = useState(true);
+
+  const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
+
+  useEffect(() => {
+    Promise.all([
+      fetch(`${API}/Attorney`).then((r) => r.json()).catch(() => []),
+      fetch(`${API}/Matter`).then((r) => r.json()).catch(() => []),
+    ]).then(([atts, mats]) => {
+      setAttorneys(atts);
+      setMatters(mats);
+    }).finally(() => setLoadingData(false));
+  }, []);
+
+  const isValid = form.attorneyId && form.matterId && form.narrative && form.units && form.workDate;
+
+  const selectStyle = { ...inputStyle, appearance: "none", cursor: "pointer", paddingRight: "36px" };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.82)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }} onClick={onClose}>
+      <div style={{ background: "#0D1426", border: "1px solid rgba(141,198,63,0.25)", borderRadius: "12px", width: "520px", maxWidth: "100%", maxHeight: "90vh", overflowY: "auto", fontFamily: "'Inter', sans-serif" }} onClick={(e) => e.stopPropagation()}>
+
+        {/* Header */}
+        <div style={{ padding: "20px 24px", borderBottom: "1px solid rgba(141,198,63,0.12)", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, background: "#0D1426", zIndex: 1 }}>
+          <div>
+            <h3 style={{ fontSize: "16px", fontWeight: 700, color: "#fff", margin: 0 }}>{isEdit ? "Edit Time Entry" : "New Time Entry"}</h3>
+            <p style={{ fontSize: "12px", color: "rgba(255,255,255,0.35)", margin: "3px 0 0" }}>{isEdit ? "Update this entry" : "Log billable time"}</p>
+          </div>
+          <button onClick={onClose} style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.35)", cursor: "pointer" }}>
+            <X style={{ width: "18px", height: "18px" }} />
+          </button>
+        </div>
+
+        <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "14px" }}>
+          {loadingData ? (
+            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "13px", textAlign: "center", padding: "20px 0" }}>Loading attorneys and matters…</p>
+          ) : (<>
+
+            {/* Attorney */}
+            <FieldLabel label="Attorney" required>
+              <div style={{ position: "relative" }}>
+                <select value={form.attorneyId} onChange={(e) => set("attorneyId", e.target.value)} style={selectStyle}>
+                  <option value="">— Select attorney —</option>
+                  {attorneys.map((a) => {
+                    const id  = a.Id  ?? a.id;
+                    const name = a.Name ?? a.name;
+                    return <option key={id} value={id} style={{ background: "#0D1426" }}>{name}</option>;
+                  })}
+                </select>
+                <ChevronDown style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", width: "14px", height: "14px", color: "rgba(255,255,255,0.3)", pointerEvents: "none" }} />
+              </div>
+            </FieldLabel>
+
+            {/* Matter */}
+            <FieldLabel label="Matter" required>
+              <div style={{ position: "relative" }}>
+                <select value={form.matterId} onChange={(e) => set("matterId", e.target.value)} style={selectStyle}>
+                  <option value="">— Select matter —</option>
+                  {matters.map((m) => {
+                    const id  = m.Id  ?? m.id;
+                    const num = m.MatterNumber ?? m.matterNumber;
+                    const client = m.ClientName ?? m.clientName;
+                    return <option key={id} value={id} style={{ background: "#0D1426" }}>{num} — {client}</option>;
+                  })}
+                </select>
+                <ChevronDown style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", width: "14px", height: "14px", color: "rgba(255,255,255,0.3)", pointerEvents: "none" }} />
+              </div>
+            </FieldLabel>
+
+            {/* Narrative */}
+            <FieldLabel label="Narrative" required>
+              <textarea
+                value={form.narrative}
+                onChange={(e) => set("narrative", e.target.value)}
+                placeholder="Describe the work done…"
+                rows={3}
+                style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }}
+              />
+            </FieldLabel>
+
+            {/* Category + Units row */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+              <FieldLabel label="Category" required>
+                <div style={{ position: "relative" }}>
+                  <select value={form.category} onChange={(e) => set("category", e.target.value)} style={selectStyle}>
+                    {["Drafting","Research","Court","Meeting","Consultation","Communication"].map((c) => (
+                      <option key={c} value={c} style={{ background: "#0D1426" }}>{c}</option>
+                    ))}
+                  </select>
+                  <ChevronDown style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", width: "14px", height: "14px", color: "rgba(255,255,255,0.3)", pointerEvents: "none" }} />
+                </div>
+              </FieldLabel>
+
+              <FieldLabel label="Units (1 unit = 6 min)" required>
+                <input
+                  value={form.units}
+                  onChange={(e) => set("units", e.target.value)}
+                  placeholder="e.g. 5"
+                  type="number"
+                  min="1"
+                  style={inputStyle}
+                />
+              </FieldLabel>
+            </div>
+
+            {/* Duration preview */}
+            {form.units && (
+              <div style={{ background: "rgba(141,198,63,0.06)", border: "1px solid rgba(141,198,63,0.15)", borderRadius: "6px", padding: "8px 12px", fontSize: "12px", color: "rgba(141,198,63,0.8)" }}>
+                ⏱ {((parseInt(form.units) * 6) / 60).toFixed(2)} hours ({form.units} units × 6 min)
+              </div>
+            )}
+
+            {/* Work Date */}
+            <FieldLabel label="Work Date" required>
+              <input
+                value={form.workDate}
+                onChange={(e) => set("workDate", e.target.value)}
+                type="date"
+                style={{ ...inputStyle, colorScheme: "dark" }}
+              />
+            </FieldLabel>
+
+          </>)}
+
+          {/* Actions */}
+          <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
+            <button
+              onClick={() => onSave(form)}
+              disabled={saving || !isValid || loadingData}
+              style={{ flex: 1, fontSize: "13px", fontWeight: 700, color: "#0A0F1E", background: saving || !isValid || loadingData ? "rgba(141,198,63,0.4)" : "#8DC63F", border: "none", borderRadius: "7px", padding: "12px", cursor: saving || !isValid || loadingData ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
+            >
+              {saving ? (isEdit ? "Saving…" : "Creating…") : (isEdit ? "Save Changes" : "Create Entry")}
+            </button>
+            <button onClick={onClose} style={{ fontSize: "13px", color: "rgba(255,255,255,0.5)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "7px", padding: "12px 20px", cursor: "pointer" }}>
+              Cancel
+            </button>
           </div>
         </div>
       </div>
@@ -119,15 +336,102 @@ function Modal({ entry, onClose }) {
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 export function TimeEntries() {
-  const [entries, setEntries] = useState(MOCK_ENTRIES);
+  const [entries, setEntries] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [search, setSearch] = useState("");
   const [attorney, setAttorney] = useState("All Attorneys");
+  const [attorneyList, setAttorneyList] = useState(["All Attorneys"]);
   const [status, setStatus] = useState("All Status");
   const [type, setType] = useState("All Types");
   const [selected, setSelected] = useState(null);
   const [visible, setVisible] = useState(false);
+  const [toast, setToast] = useState(null);
+  const [showForm, setShowForm]     = useState(false);
+  const [editTarget, setEditTarget] = useState(null);
+  const [saving, setSaving]         = useState(false);
 
-  useEffect(() => { setTimeout(() => setVisible(true), 50); }, []);
+  const showToast = (msg, ok = true) => {
+    setToast({ msg, ok });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const fetchEntries = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch(`${API}/TimeEntry`);
+      if (!res.ok) throw new Error("Failed to fetch");
+      const data = await res.json();
+      const mapped = data.map(mapEntry);
+      setEntries(mapped);
+      // Build attorney filter list from real data
+      const names = ["All Attorneys", ...new Set(mapped.map((e) => e.attorney).filter(Boolean))];
+      setAttorneyList(names);
+    } catch (err) {
+      setError("Could not load time entries. Make sure your API is running.");
+    } finally {
+      setLoading(false);
+      setTimeout(() => setVisible(true), 50);
+    }
+  };
+
+  const handleDelete = async (entry) => {
+    if (!window.confirm(`Delete entry for "${entry.task}"?`)) return;
+    try {
+      const res = await fetch(`${API}/TimeEntry/${entry.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      showToast("Entry deleted.");
+      setSelected(null);
+      fetchEntries();
+    } catch {
+      showToast("Delete failed.", false);
+    }
+  };
+
+  const handleSave = async (form) => {
+    setSaving(true);
+    try {
+      const payload = {
+        AttorneyId: parseInt(form.attorneyId, 10),
+        MatterId:   parseInt(form.matterId, 10),
+        Narrative:  form.narrative,
+        Category:   form.category,
+        Units:      parseInt(form.units, 10),
+        WorkDate:   form.workDate,
+      };
+      let res;
+      if (editTarget) {
+        res = await fetch(`${API}/TimeEntry/${editTarget.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      } else {
+        res = await fetch(`${API}/TimeEntry`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      }
+      if (!res.ok) {
+        const msg = await res.text().catch(() => res.status);
+        throw new Error(msg);
+      }
+      showToast(editTarget ? "Entry updated." : "Entry created.");
+      setShowForm(false);
+      setEditTarget(null);
+      setSelected(null);
+      fetchEntries();
+    } catch (err) {
+      console.error("Save error:", err);
+      showToast(`Failed to save: ${err.message || "unknown error"}`, false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  useEffect(() => { fetchEntries(); }, []);
 
   const filtered = entries.filter((e) => {
     const matchSearch = e.matter.toLowerCase().includes(search.toLowerCase()) || e.task.toLowerCase().includes(search.toLowerCase()) || e.ref.toLowerCase().includes(search.toLowerCase());
@@ -151,6 +455,32 @@ export function TimeEntries() {
   return (
     <div style={{ minHeight: "100%", background: "#080D1A", padding: "28px 32px", fontFamily: "'Inter', sans-serif", color: "#fff" }}>
 
+      {/* Toast */}
+      {toast && (
+        <div style={{ position: "fixed", bottom: "24px", right: "24px", background: toast.ok ? "rgba(141,198,63,0.15)" : "rgba(239,68,68,0.15)", border: `1px solid ${toast.ok ? "rgba(141,198,63,0.4)" : "rgba(239,68,68,0.4)"}`, color: toast.ok ? "#8DC63F" : "#ef4444", padding: "12px 20px", borderRadius: "8px", fontSize: "13px", fontWeight: 600, zIndex: 999 }}>
+          {toast.msg}
+        </div>
+      )}
+
+      {/* Loading */}
+      {loading && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "300px", flexDirection: "column", gap: "12px" }}>
+          <div style={{ width: "32px", height: "32px", border: "3px solid rgba(141,198,63,0.2)", borderTop: "3px solid #8DC63F", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+          <p style={{ color: "rgba(255,255,255,0.35)", fontSize: "13px" }}>Loading entries…</p>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      )}
+
+      {/* Error */}
+      {!loading && error && (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "300px", gap: "12px" }}>
+          <p style={{ color: "#ef4444", fontSize: "14px" }}>{error}</p>
+          <button onClick={fetchEntries} style={{ fontSize: "12px", color: "#8DC63F", background: "rgba(141,198,63,0.1)", border: "1px solid rgba(141,198,63,0.3)", borderRadius: "6px", padding: "8px 18px", cursor: "pointer" }}>Retry</button>
+        </div>
+      )}
+
+      {!loading && !error && (<>
+
       {/* ── Header ── */}
       <div style={{ ...fadeIn(0), display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: "24px" }}>
         <div>
@@ -159,10 +489,7 @@ export function TimeEntries() {
           <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.35)", margin: "4px 0 0" }}>Review, edit and approve all captured time</p>
         </div>
         <div style={{ display: "flex", gap: "10px" }}>
-          <button style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "rgba(255,255,255,0.6)", background: "#0D1426", border: "1px solid rgba(141,198,63,0.2)", borderRadius: "6px", padding: "9px 16px", cursor: "pointer" }}>
-            <Download style={{ width: "14px", height: "14px" }} /> Export
-          </button>
-          <button style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", fontWeight: 600, color: "#0A0F1E", background: "#8DC63F", border: "none", borderRadius: "6px", padding: "9px 16px", cursor: "pointer" }}>
+          <button onClick={() => { setEditTarget(null); setShowForm(true); }} style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", fontWeight: 600, color: "#0A0F1E", background: "#8DC63F", border: "none", borderRadius: "6px", padding: "9px 16px", cursor: "pointer" }}>
             <Plus style={{ width: "14px", height: "14px" }} /> New Entry
           </button>
         </div>
@@ -206,7 +533,7 @@ export function TimeEntries() {
             }}
           />
         </div>
-        <Select value={attorney} onChange={setAttorney} options={ATTORNEYS} />
+        <Select value={attorney} onChange={setAttorney} options={attorneyList} />
         <Select value={status} onChange={setStatus} options={STATUSES} />
         <Select value={type} onChange={setType} options={TYPES} />
 
@@ -309,7 +636,9 @@ export function TimeEntries() {
       </div>
 
       {/* ── Detail Modal ── */}
-      <Modal entry={selected} onClose={() => setSelected(null)} />
+      <Modal entry={selected} onClose={() => setSelected(null)} onDelete={handleDelete} onEdit={(entry) => { setEditTarget(entry); setShowForm(true); setSelected(null); }} />
+      {showForm && <TimeEntryModal entry={editTarget} onClose={() => { setShowForm(false); setEditTarget(null); }} onSave={handleSave} saving={saving} />}
+      </>)}
     </div>
   );
 }

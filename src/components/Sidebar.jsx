@@ -12,15 +12,36 @@ import {
   ChevronRight,
 } from "lucide-react";
 
-const NAV_ITEMS = [
-  { id: "dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { id: "timetracker", icon: Clock, label: "Time Tracker" },
-  { id: "timeentries", icon: ClipboardList, label: "Time Entries" },
-  { id: "matters", icon: Briefcase, label: "Matters" },
-  { id: "billing", icon: FileText, label: "Billing" },
-  { id: "reports", icon: BarChart3, label: "Reports" },
-  { id: "attorneys", icon: Users, label: "Attorneys" },
-  { id: "activityfeed", icon: Activity, label: "Activity Feed" },
+const NAV_SECTIONS = [
+  {
+    section: null,
+    items: [{ id: "dashboard", icon: LayoutDashboard, label: "Dashboard" }],
+  },
+  {
+    section: "Capture",
+    items: [
+      { id: "activityfeed", icon: Activity, label: "Activity Feed" },
+      { id: "timetracker", icon: Clock, label: "Time Tracker" },
+    ],
+  },
+  {
+    section: "Management",
+    items: [
+      { id: "timeentries", icon: ClipboardList, label: "Time Entries" },
+      { id: "matters", icon: Briefcase, label: "Matters" },
+    ],
+  },
+  {
+    section: "Finance",
+    items: [
+      { id: "billing", icon: FileText, label: "Billing" },
+      { id: "reports", icon: BarChart3, label: "Reports" },
+    ],
+  },
+  {
+    section: "Admin",
+    items: [{ id: "attorneys", icon: Users, label: "Attorneys" }],
+  },
 ];
 
 export function Sidebar({ collapsed, onToggle, currentPage, onPageChange }) {
@@ -62,7 +83,6 @@ export function Sidebar({ collapsed, onToggle, currentPage, onPageChange }) {
           borderBottom: "1px solid rgba(141,198,63,0.15)",
         }}
       >
-        {/* MB Logo mark */}
         <div
           style={{
             width: "36px",
@@ -120,89 +140,101 @@ export function Sidebar({ collapsed, onToggle, currentPage, onPageChange }) {
           gap: "2px",
         }}
       >
-        {!collapsed && (
-          <p
-            style={{
-              fontSize: "9px",
-              fontWeight: 700,
-              color: "rgba(141,198,63,0.5)",
-              letterSpacing: "2px",
-              textTransform: "uppercase",
-              padding: "4px 12px 10px",
-            }}
-          >
-            Navigation
-          </p>
-        )}
-
-        {NAV_ITEMS.map((item) => {
-          const Icon = item.icon;
-          const active = currentPage === item.id;
-
-          return (
-            <button
-              key={item.id}
-              onClick={() => onPageChange(item.id)}
-              title={collapsed ? item.label : undefined}
-              style={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                gap: collapsed ? 0 : "10px",
-                justifyContent: collapsed ? "center" : "flex-start",
-                padding: collapsed ? "12px" : "10px 12px",
-                borderRadius: "6px",
-                border: "none",
-                cursor: "pointer",
-                transition: "all 0.15s ease",
-                background: active ? "rgba(141,198,63,0.15)" : "transparent",
-                borderLeft: active
-                  ? "3px solid #8DC63F"
-                  : "3px solid transparent",
-                color: active ? "#8DC63F" : "rgba(255,255,255,0.5)",
-              }}
-              onMouseEnter={(e) => {
-                if (!active) {
-                  e.currentTarget.style.background = "rgba(255,255,255,0.05)";
-                  e.currentTarget.style.color = "rgba(255,255,255,0.85)";
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!active) {
-                  e.currentTarget.style.background = "transparent";
-                  e.currentTarget.style.color = "rgba(255,255,255,0.5)";
-                }
-              }}
-            >
-              <Icon
+        {NAV_SECTIONS.map((group, gi) => (
+          <div key={gi} style={{ marginBottom: group.section ? "6px" : "2px" }}>
+            {/* Section label */}
+            {group.section && !collapsed && (
+              <p
                 style={{
-                  width: "16px",
-                  height: "16px",
-                  flexShrink: 0,
+                  fontSize: "9px",
+                  fontWeight: 700,
+                  color: "rgba(141,198,63,0.45)",
+                  letterSpacing: "2px",
+                  textTransform: "uppercase",
+                  padding: "10px 12px 4px",
+                  margin: 0,
+                }}
+              >
+                {group.section}
+              </p>
+            )}
+            {/* Collapsed divider between sections */}
+            {group.section && collapsed && (
+              <div
+                style={{
+                  height: "1px",
+                  background: "rgba(141,198,63,0.1)",
+                  margin: "8px 12px 6px",
                 }}
               />
-              {!collapsed && (
-                <span
+            )}
+
+            {/* Nav items */}
+            {group.items.map((item) => {
+              const Icon = item.icon;
+              const active = currentPage === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => onPageChange(item.id)}
+                  title={collapsed ? item.label : undefined}
                   style={{
-                    fontSize: "13px",
-                    fontWeight: active ? 600 : 400,
-                    letterSpacing: "0.2px",
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: collapsed ? 0 : "10px",
+                    justifyContent: collapsed ? "center" : "flex-start",
+                    padding: collapsed ? "12px" : "9px 12px",
+                    borderRadius: "6px",
+                    border: "none",
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
+                    background: active
+                      ? "rgba(141,198,63,0.15)"
+                      : "transparent",
+                    borderLeft: active
+                      ? "3px solid #8DC63F"
+                      : "3px solid transparent",
+                    color: active ? "#8DC63F" : "rgba(255,255,255,0.5)",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!active) {
+                      e.currentTarget.style.background =
+                        "rgba(255,255,255,0.05)";
+                      e.currentTarget.style.color = "rgba(255,255,255,0.85)";
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!active) {
+                      e.currentTarget.style.background = "transparent";
+                      e.currentTarget.style.color = "rgba(255,255,255,0.5)";
+                    }
                   }}
                 >
-                  {item.label}
-                </span>
-              )}
-            </button>
-          );
-        })}
+                  <Icon
+                    style={{ width: "16px", height: "16px", flexShrink: 0 }}
+                  />
+                  {!collapsed && (
+                    <span
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: active ? 600 : 400,
+                        letterSpacing: "0.2px",
+                      }}
+                    >
+                      {item.label}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        ))}
       </nav>
 
       {/* ── Collapse toggle ── */}
       <div
-        style={{
-          padding: "8px",
-          borderTop: "1px solid rgba(141,198,63,0.15)",
-        }}
+        style={{ padding: "8px", borderTop: "1px solid rgba(141,198,63,0.15)" }}
       >
         <button
           onClick={onToggle}
