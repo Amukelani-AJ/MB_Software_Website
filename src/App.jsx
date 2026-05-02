@@ -1,6 +1,6 @@
 import "./App.css";
 import { useState } from "react";
-import { Route, Routes, useLocation } from "react-router-dom";
+import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { Header } from "./components/Header";
 import { Sidebar } from "./components/Sidebar";
 import { Dashboard } from "./pages/Dashboard";
@@ -9,72 +9,113 @@ import { TimeTracker } from "./pages/TimeTracker";
 import { TimeEntries } from "./pages/TimeEntries";
 import { Matters } from "./pages/Matters";
 import { Billing } from "./pages/Billing";
-import { Report } from "./pages/Reports";
+import { Reports } from "./pages/Reports";
+import { Attorneys } from "./pages/Attorneys";
 
-function App() {
+// Map route path → sidebar page id
+const PATH_TO_PAGE = {
+  "/":             "dashboard",
+  "/activityfeed": "activityfeed",
+  "/timetracker":  "timetracker",
+  "/timeentries":  "timeentries",
+  "/matters":      "matters",
+  "/billing":      "billing",
+  "/reports":      "reports",
+  "/attorneys":    "attorneys",
+};
+
+// Map sidebar page id → route path
+const PAGE_TO_PATH = {
+  dashboard:    "/",
+  activityfeed: "/activityfeed",
+  timetracker:  "/timetracker",
+  timeentries:  "/timeentries",
+  matters:      "/matters",
+  billing:      "/billing",
+  reports:      "/reports",
+  attorneys:    "/attorneys",
+};
+
+function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
-  // Map URL path → currentPage id
-  const pageMap = {
-    "/": "dashboard",
-    "/activityfeed": "activityfeed",
-    "/timetracker": "timetracker",
-    "/timeentries": "timeentries",
-    "/matters": "matters",
-    "/billing": "billing",
-    "/report": "reports",
+  const currentPage = PATH_TO_PAGE[location.pathname] || "dashboard";
+
+  const handlePageChange = (pageId) => {
+    const path = PAGE_TO_PATH[pageId];
+    if (path) navigate(path);
   };
 
-  const currentPage = pageMap[location.pathname] || "dashboard";
-
   return (
-    <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: "#080D1A" }}>
-      
+    <div
+      style={{
+        display: "flex",
+        height: "100vh",
+        overflow: "hidden",
+        background: "#080D1A",
+      }}
+    >
       {/* Sidebar */}
       <Sidebar
         collapsed={collapsed}
-        onToggle={() => setCollapsed(!collapsed)}
+        onToggle={() => setCollapsed((c) => !c)}
         currentPage={currentPage}
-        onPageChange={(id) => {
-          const reverseMap = {
-            dashboard: "/",
-            activityfeed: "/activityfeed",
-            timetracker: "/timetracker",
-            timeentries: "/timeentries",
-            matters: "/matters",
-            billing: "/billing",
-            reports: "/report",
-          };
-          window.location.href = reverseMap[id] || "/";
-        }}
+        onPageChange={handlePageChange}
       />
 
-      {/* Main content area */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        
+      {/* Main content column */}
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+          minWidth: 0,
+        }}
+      >
         {/* Header */}
         <Header
-          onToggleSidebar={() => setCollapsed(!collapsed)}
+          onToggleSidebar={() => setCollapsed((c) => !c)}
           currentPage={currentPage}
         />
 
         {/* Page content */}
         <main style={{ flex: 1, overflowY: "auto", background: "#080D1A" }}>
           <Routes>
-            <Route path="/" element={<Dashboard />} />
+            <Route path="/"             element={<Dashboard />} />
             <Route path="/activityfeed" element={<ActivityFeed />} />
-            <Route path="/timetracker" element={<TimeTracker />} />
-            <Route path="/timeentries" element={<TimeEntries />} />
-            <Route path="/matters" element={<Matters />} />
-            <Route path="/billing" element={<Billing />} />
-            <Route path="/report" element={<Report />} />
+            <Route path="/timetracker"  element={<TimeTracker />} />
+            <Route path="/timeentries"  element={<TimeEntries />} />
+            <Route path="/matters"      element={<Matters />} />
+            <Route path="/billing"      element={<Billing />} />
+            <Route path="/reports"      element={<Reports />} />
+            <Route path="/attorneys"    element={<Attorneys />} />
+
+            {/* 404 fallback */}
+            <Route path="*" element={
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", fontFamily: "'Inter', sans-serif", color: "#fff", gap: "12px" }}>
+                <p style={{ fontSize: "64px", fontWeight: 800, color: "rgba(141,198,63,0.2)", margin: 0 }}>404</p>
+                <p style={{ fontSize: "18px", fontWeight: 600, margin: 0 }}>Page not found</p>
+                <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.35)", margin: 0 }}>The page you're looking for doesn't exist.</p>
+                <button
+                  onClick={() => navigate("/")}
+                  style={{ marginTop: "8px", fontSize: "13px", fontWeight: 700, color: "#0A0F1E", background: "#8DC63F", border: "none", borderRadius: "7px", padding: "10px 20px", cursor: "pointer" }}
+                >
+                  Go to Dashboard
+                </button>
+              </div>
+            } />
           </Routes>
         </main>
-
       </div>
     </div>
   );
+}
+
+function App() {
+  return <AppLayout />;
 }
 
 export default App;
