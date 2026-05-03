@@ -36,55 +36,62 @@ const PAGE_TO_PATH = {
   attorneys:    "/attorneys",
 };
 
+// Pages accessible to attorney role only
+const ATTORNEY_PAGES = ["activityfeed", "timetracker"];
+
 function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
-  const location = useLocation();
-  const navigate = useNavigate();
+  const [role, setRole]           = useState("manager"); // "manager" | "attorney"
+  const location  = useLocation();
+  const navigate  = useNavigate();
 
   const currentPage = PATH_TO_PAGE[location.pathname] || "dashboard";
 
   const handlePageChange = (pageId) => {
+    // If attorney role tries to access a manager-only page, redirect to activity feed
+    if (role === "attorney" && !ATTORNEY_PAGES.includes(pageId)) return;
     const path = PAGE_TO_PATH[pageId];
     if (path) navigate(path);
   };
 
+  const handleRoleChange = (newRole) => {
+    setRole(newRole);
+    // When switching to attorney, redirect to activity feed if on a manager-only page
+    if (newRole === "attorney" && !ATTORNEY_PAGES.includes(currentPage)) {
+      navigate("/activityfeed");
+    }
+    // When switching back to manager, go to dashboard
+    if (newRole === "manager") {
+      navigate("/");
+    }
+  };
+
   return (
-    <div
-      style={{
-        display: "flex",
-        height: "100vh",
-        overflow: "hidden",
-        background: "#080D1A",
-      }}
-    >
+    <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: "#080D1A" }}>
+
       {/* Sidebar */}
       <Sidebar
         collapsed={collapsed}
         onToggle={() => setCollapsed((c) => !c)}
         currentPage={currentPage}
         onPageChange={handlePageChange}
+        role={role}
       />
 
       {/* Main content column */}
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-          minWidth: 0,
-        }}
-      >
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
+
         {/* Header */}
         <Header
           onToggleSidebar={() => setCollapsed((c) => !c)}
           currentPage={currentPage}
+          onRoleChange={handleRoleChange}
         />
 
         {/* Page content */}
         <main style={{ flex: 1, overflowY: "auto", background: "#080D1A" }}>
           <Routes>
-            <Route path="/"             element={<Dashboard />} />
+            <Route path="/"             element={<Dashboard role={role} />} />
             <Route path="/activityfeed" element={<ActivityFeed />} />
             <Route path="/timetracker"  element={<TimeTracker />} />
             <Route path="/timeentries"  element={<TimeEntries />} />

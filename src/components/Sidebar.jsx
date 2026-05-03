@@ -12,39 +12,40 @@ import {
   ChevronRight,
 } from "lucide-react";
 
+// roles: "all" = everyone, "manager" = practice manager only, "attorney" = attorney only
 const NAV_SECTIONS = [
   {
     section: null,
-    items: [{ id: "dashboard", icon: LayoutDashboard, label: "Dashboard" }],
+    items: [{ id: "dashboard", icon: LayoutDashboard, label: "Dashboard", roles: "manager" }],
   },
   {
     section: "Capture",
     items: [
-      { id: "activityfeed", icon: Activity, label: "Activity Feed" },
-      { id: "timetracker", icon: Clock, label: "Time Tracker" },
+      { id: "activityfeed", icon: Activity,      label: "Activity Feed", roles: "all"      },
+      { id: "timetracker",  icon: Clock,          label: "Time Tracker",  roles: "all"      },
     ],
   },
   {
     section: "Management",
     items: [
-      { id: "timeentries", icon: ClipboardList, label: "Time Entries" },
-      { id: "matters", icon: Briefcase, label: "Matters" },
+      { id: "timeentries", icon: ClipboardList,  label: "Time Entries",  roles: "manager"  },
+      { id: "matters",     icon: Briefcase,       label: "Matters",       roles: "manager"  },
     ],
   },
   {
     section: "Finance",
     items: [
-      { id: "billing", icon: FileText, label: "Billing" },
-      { id: "reports", icon: BarChart3, label: "Reports" },
+      { id: "billing",     icon: FileText,        label: "Billing",       roles: "manager"  },
+      { id: "reports",     icon: BarChart3,       label: "Reports",       roles: "manager"  },
     ],
   },
   {
     section: "Admin",
-    items: [{ id: "attorneys", icon: Users, label: "Attorneys" }],
+    items: [{ id: "attorneys", icon: Users,       label: "Attorneys",     roles: "manager"  }],
   },
 ];
 
-export function Sidebar({ collapsed, onToggle, currentPage, onPageChange }) {
+export function Sidebar({ collapsed, onToggle, currentPage, onPageChange, role = "manager" }) {
   const [time, setTime] = useState(new Date());
 
   useEffect(() => {
@@ -140,7 +141,24 @@ export function Sidebar({ collapsed, onToggle, currentPage, onPageChange }) {
           gap: "2px",
         }}
       >
-        {NAV_SECTIONS.map((group, gi) => (
+        {/* Attorney role banner */}
+        {role === "attorney" && !collapsed && (
+          <div style={{ margin: "4px 4px 10px", background: "rgba(96,165,250,0.08)", border: "1px solid rgba(96,165,250,0.2)", borderRadius: "6px", padding: "8px 10px" }}>
+            <p style={{ fontSize: "10px", fontWeight: 700, color: "#60a5fa", margin: "0 0 1px", letterSpacing: "0.5px" }}>Attorney View</p>
+            <p style={{ fontSize: "10px", color: "rgba(96,165,250,0.5)", margin: 0 }}>Limited access mode</p>
+          </div>
+        )}
+        {role === "attorney" && collapsed && (
+          <div style={{ margin: "4px 8px 8px", height: "3px", background: "rgba(96,165,250,0.4)", borderRadius: "2px" }} title="Attorney View" />
+        )}
+
+      {NAV_SECTIONS.map((group, gi) => {
+          // Filter items based on current role
+          const visibleItems = group.items.filter(
+            (item) => item.roles === "all" || item.roles === role
+          );
+          if (visibleItems.length === 0) return null;
+          return (
           <div key={gi} style={{ marginBottom: group.section ? "6px" : "2px" }}>
             {/* Section label */}
             {group.section && !collapsed && (
@@ -170,7 +188,7 @@ export function Sidebar({ collapsed, onToggle, currentPage, onPageChange }) {
             )}
 
             {/* Nav items */}
-            {group.items.map((item) => {
+            {visibleItems.map((item) => {
               const Icon = item.icon;
               const active = currentPage === item.id;
               return (
@@ -229,7 +247,8 @@ export function Sidebar({ collapsed, onToggle, currentPage, onPageChange }) {
               );
             })}
           </div>
-        ))}
+          );
+        })}
       </nav>
 
       {/* ── Collapse toggle ── */}

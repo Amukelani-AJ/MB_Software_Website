@@ -70,7 +70,7 @@ const greeting = () => {
 };
 
 // ── Main Component ────────────────────────────────────────────────────────────
-export function Dashboard() {
+export function Dashboard({ role = "manager" }) {
   const navigate = useNavigate();
   const [elapsed, setElapsed]       = useState(0);
   const [timerRunning, setTimerRunning] = useState(false);
@@ -308,12 +308,12 @@ export function Dashboard() {
             {friendlyDate()}
           </p>
           <h2 style={{ fontSize: "26px", fontWeight: 700, margin: "4px 0 0", color: "#fff", letterSpacing: "-0.5px" }}>
-            {greeting()}, Amukelani.
+            {greeting()}
           </h2>
           <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.35)", margin: "4px 0 0" }}>
             {loading
               ? "Loading your dashboard…"
-              : `${recentEntries.length} recent time entries · ${activeMatters.length} active matters · ${attorneys.length || SEED_ATTORNEYS.length} attorneys`
+              : role === "attorney" ? `${todayEntries.length} entries today · ${hoursToday.toFixed(1)} hrs logged` : `${recentEntries.length} recent time entries · ${activeMatters.length} active matters · ${attorneys.length || SEED_ATTORNEYS.length} attorneys`
             }
           </p>
         </div>
