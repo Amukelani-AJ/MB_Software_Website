@@ -17,27 +17,66 @@ import {
   SkipForward,
 } from "lucide-react";
 
-// ── Mock matters for assignment ────────────────────────────────────────────────
-const MATTERS = [
-  { id: 1, ref: "MAT-2024-041", name: "Khumalo v Nedbank" },
-  { id: 2, ref: "MAT-2024-038", name: "Dlamini Estate" },
-  { id: 3, ref: "MAT-2024-029", name: "Transnet Arbitration" },
-  { id: 4, ref: "MAT-2024-045", name: "Mbeki Family Trust" },
-  { id: 5, ref: "MAT-2024-031", name: "SARS Appeal – Venter" },
+const API = "https://localhost:7291/api";
+
+// ── Seeded attorneys (mirrors Seed.cs) ────────────────────────────────────────
+const SEED_ATTORNEYS = [
+  { id: 1, name: "John Dube",        hourlyRate: 2500 },
+  { id: 2, name: "Sarah Molefe",     hourlyRate: 3000 },
+  { id: 3, name: "James Nkosi",      hourlyRate: 2000 },
+  { id: 4, name: "Amukelani Ndlovu", hourlyRate: 2800 },
+  { id: 5, name: "Sipho Mokoena",    hourlyRate: 2200 },
+  { id: 6, name: "Thabo Sithole",    hourlyRate: 1800 },
+  { id: 7, name: "Nomsa Dlamini",    hourlyRate: 2600 },
+  { id: 8, name: "Pieter Venter",    hourlyRate: 3200 },
 ];
 
-// ── Simulated incoming events pool ────────────────────────────────────────────
-const EVENT_POOL = [
-  { type: "email",    icon: Mail,     label: "Email Detected",       color: "#60a5fa", desc: "Email sent to Thandi Khumalo re: court date confirmation",         duration: 0.1, units: 1,  attorney: "Amukelani Ndlovu",  suggestedMatter: 1 },
-  { type: "call",     icon: Phone,    label: "Call Captured",        color: "#34d399", desc: "Outbound call to Transnet legal team — duration 22 min",           duration: 0.4, units: 4,  attorney: "Amukelani Ndlovu",  suggestedMatter: 3 },
-  { type: "document", icon: FileText, label: "Document Edited",      color: "#a78bfa", desc: "Heads of Argument v4.docx edited and saved (38 mins active)",      duration: 0.6, units: 6,  attorney: "Amukelani Ndlovu",  suggestedMatter: 1 },
-  { type: "meeting",  icon: Calendar, label: "Meeting Ended",        color: "#f472b6", desc: "Calendar event ended: Dlamini Estate — client consultation",       duration: 0.5, units: 5,  attorney: "Sipho Mokoena",     suggestedMatter: 2 },
-  { type: "research", icon: Globe,    label: "Research Detected",    color: "#fb923c", desc: "Browser: saflii.org open for 45 mins — tax tribunal precedents",   duration: 0.8, units: 8,  attorney: "Sipho Mokoena",     suggestedMatter: 5 },
-  { type: "email",    icon: Mail,     label: "Email Detected",       color: "#60a5fa", desc: "Email received and replied to: Mbeki Trust — deed amendment query", duration: 0.1, units: 1,  attorney: "Thabo Sithole",     suggestedMatter: 4 },
-  { type: "document", icon: FileText, label: "Document Edited",      color: "#a78bfa", desc: "Trust Deed Draft v2.docx edited — 52 mins of active editing",      duration: 0.9, units: 9,  attorney: "Thabo Sithole",     suggestedMatter: 4 },
-  { type: "call",     icon: Phone,    label: "Call Captured",        color: "#34d399", desc: "Inbound call from SARS official — duration 18 min",                duration: 0.3, units: 3,  attorney: "Sipho Mokoena",     suggestedMatter: 5 },
-  { type: "meeting",  icon: Calendar, label: "Meeting Ended",        color: "#f472b6", desc: "Calendar event ended: Pre-arbitration prep with Transnet team",    duration: 1.5, units: 15, attorney: "Amukelani Ndlovu",  suggestedMatter: 3 },
-  { type: "research", icon: Globe,    label: "Research Detected",    color: "#fb923c", desc: "Browser: judgments.co.za — credit listing case law (31 mins)",     duration: 0.5, units: 5,  attorney: "Amukelani Ndlovu",  suggestedMatter: 1 },
+// ── Seeded matters (mirrors Seed.cs) ─────────────────────────────────────────
+const SEED_MATTERS = [
+  { id: 1,  matterNumber: "MB-2026-001", clientName: "ABC Corporation"     },
+  { id: 2,  matterNumber: "MB-2026-002", clientName: "XYZ Ltd"             },
+  { id: 3,  matterNumber: "MB-2026-003", clientName: "Smith vs Jones"      },
+  { id: 4,  matterNumber: "MB-2026-004", clientName: "DEF Enterprises"     },
+  { id: 5,  matterNumber: "MB-2026-005", clientName: "GHI Holdings"        },
+  { id: 6,  matterNumber: "MB-2026-006", clientName: "Khumalo Family Trust"},
+  { id: 7,  matterNumber: "MB-2026-007", clientName: "Transnet SOC Ltd"    },
+  { id: 8,  matterNumber: "MB-2026-008", clientName: "Nedbank Ltd"         },
+  { id: 9,  matterNumber: "MB-2026-009", clientName: "Eskom Holdings"      },
+  { id: 10, matterNumber: "MB-2026-010", clientName: "Sasol Limited"       },
+  { id: 11, matterNumber: "MB-2026-011", clientName: "Venter & Associates" },
+  { id: 12, matterNumber: "MB-2026-012", clientName: "Dlamini Estate"      },
+  { id: 13, matterNumber: "MB-2026-013", clientName: "Mbeki Family"        },
+  { id: 14, matterNumber: "MB-2026-014", clientName: "Nkosi Investments"   },
+  { id: 15, matterNumber: "MB-2026-015", clientName: "Sithole Trading"     },
+];
+
+// ── Simulated event pool — attorney + matter pre-assigned from seed data ────────
+const EVENT_TEMPLATES = [
+  { type: "email",    icon: Mail,     label: "Email Detected",    color: "#60a5fa", desc: "Email sent to Transnet legal team re: arbitration hearing dates",          duration: 0.1, units: 1,  attorney: SEED_ATTORNEYS[3], matter: SEED_MATTERS[6]  },
+  { type: "call",     icon: Phone,    label: "Call Captured",     color: "#34d399", desc: "Outbound call to SARS official re: objection — duration 18 min",           duration: 0.3, units: 3,  attorney: SEED_ATTORNEYS[4], matter: SEED_MATTERS[10] },
+  { type: "document", icon: FileText, label: "Document Edited",   color: "#a78bfa", desc: "Heads_of_Argument_v4.docx — 38 mins active editing detected",              duration: 0.6, units: 6,  attorney: SEED_ATTORNEYS[3], matter: SEED_MATTERS[2]  },
+  { type: "meeting",  icon: Calendar, label: "Meeting Ended",     color: "#f472b6", desc: "Calendar: Dlamini Estate — client consultation ended",                     duration: 0.5, units: 5,  attorney: SEED_ATTORNEYS[4], matter: SEED_MATTERS[11] },
+  { type: "research", icon: Globe,    label: "Research Detected", color: "#fb923c", desc: "Browser: saflii.org open 45 mins — tax tribunal precedents",               duration: 0.8, units: 8,  attorney: SEED_ATTORNEYS[4], matter: SEED_MATTERS[10] },
+  { type: "email",    icon: Mail,     label: "Email Detected",    color: "#60a5fa", desc: "Email reply to Mbeki Family re: trust deed amendment query",               duration: 0.1, units: 1,  attorney: SEED_ATTORNEYS[5], matter: SEED_MATTERS[12] },
+  { type: "document", icon: FileText, label: "Document Edited",   color: "#a78bfa", desc: "Trust_Deed_Draft_v2.docx — 52 mins of active editing",                    duration: 0.9, units: 9,  attorney: SEED_ATTORNEYS[5], matter: SEED_MATTERS[12] },
+  { type: "call",     icon: Phone,    label: "Call Captured",     color: "#34d399", desc: "Inbound call from Nedbank legal — mortgage bond query, 22 min",            duration: 0.4, units: 4,  attorney: SEED_ATTORNEYS[0], matter: SEED_MATTERS[7]  },
+  { type: "meeting",  icon: Calendar, label: "Meeting Ended",     color: "#f472b6", desc: "Calendar: Transnet pre-arbitration prep — 90 min session ended",           duration: 1.5, units: 15, attorney: SEED_ATTORNEYS[3], matter: SEED_MATTERS[6]  },
+  { type: "research", icon: Globe,    label: "Research Detected", color: "#fb923c", desc: "Browser: judgments.co.za — credit listing case law, 31 mins",             duration: 0.5, units: 5,  attorney: SEED_ATTORNEYS[3], matter: SEED_MATTERS[2]  },
+  { type: "document", icon: FileText, label: "Document Edited",   color: "#a78bfa", desc: "SARS_Objection_v3.docx — 44 mins of active editing",                      duration: 0.7, units: 7,  attorney: SEED_ATTORNEYS[7], matter: SEED_MATTERS[10] },
+  { type: "email",    icon: Mail,     label: "Email Detected",    color: "#60a5fa", desc: "Email sent to ABC Corporation re: shareholder agreement comments",          duration: 0.1, units: 1,  attorney: SEED_ATTORNEYS[0], matter: SEED_MATTERS[0]  },
+  { type: "meeting",  icon: Calendar, label: "Meeting Ended",     color: "#f472b6", desc: "Calendar: GHI Holdings — property dispute strategy session ended",         duration: 0.5, units: 5,  attorney: SEED_ATTORNEYS[2], matter: SEED_MATTERS[4]  },
+  { type: "call",     icon: Phone,    label: "Call Captured",     color: "#34d399", desc: "Outbound call to Eskom regulatory team — compliance query, 15 min",        duration: 0.3, units: 3,  attorney: SEED_ATTORNEYS[1], matter: SEED_MATTERS[8]  },
+  { type: "research", icon: Globe,    label: "Research Detected", color: "#fb923c", desc: "Browser: greengazette.co.za — environmental permit regulations, 38 mins",  duration: 0.6, units: 6,  attorney: SEED_ATTORNEYS[2], matter: SEED_MATTERS[9]  },
+  { type: "document", icon: FileText, label: "Document Edited",   color: "#a78bfa", desc: "Labour_Court_Application.docx — 29 mins of active editing",               duration: 0.5, units: 5,  attorney: SEED_ATTORNEYS[5], matter: SEED_MATTERS[3]  },
+  { type: "email",    icon: Mail,     label: "Email Detected",    color: "#60a5fa", desc: "Email to Khumalo Family Trust re: estate duty calculation update",         duration: 0.1, units: 1,  attorney: SEED_ATTORNEYS[6], matter: SEED_MATTERS[5]  },
+  { type: "call",     icon: Phone,    label: "Call Captured",     color: "#34d399", desc: "Conference call with Nkosi Investments M&A team — 35 min",                 duration: 0.6, units: 6,  attorney: SEED_ATTORNEYS[7], matter: SEED_MATTERS[13] },
+  { type: "research", icon: Globe,    label: "Research Detected", color: "#fb923c", desc: "Browser: cipc.co.za — company registration precedents, 22 mins",           duration: 0.4, units: 4,  attorney: SEED_ATTORNEYS[7], matter: SEED_MATTERS[13] },
+  { type: "document", icon: FileText, label: "Document Edited",   color: "#a78bfa", desc: "Inter_Vivos_Trust_Deed_v1.docx — 55 mins of active editing",              duration: 0.9, units: 9,  attorney: SEED_ATTORNEYS[6], matter: SEED_MATTERS[5]  },
+  { type: "meeting",  icon: Calendar, label: "Meeting Ended",     color: "#f472b6", desc: "Calendar: Sithole Trading — contract negotiation session ended",           duration: 0.7, units: 7,  attorney: SEED_ATTORNEYS[5], matter: SEED_MATTERS[14] },
+  { type: "email",    icon: Mail,     label: "Email Detected",    color: "#60a5fa", desc: "Email received from XYZ Ltd re: summons service confirmation",             duration: 0.1, units: 1,  attorney: SEED_ATTORNEYS[1], matter: SEED_MATTERS[1]  },
+  { type: "document", icon: FileText, label: "Document Edited",   color: "#a78bfa", desc: "Particulars_of_Claim_v2.docx — 41 mins of active editing",                duration: 0.7, units: 7,  attorney: SEED_ATTORNEYS[1], matter: SEED_MATTERS[1]  },
+  { type: "call",     icon: Phone,    label: "Call Captured",     color: "#34d399", desc: "Inbound call from Sasol environmental manager — 27 min",                   duration: 0.5, units: 5,  attorney: SEED_ATTORNEYS[2], matter: SEED_MATTERS[9]  },
+  { type: "research", icon: Globe,    label: "Research Detected", color: "#fb923c", desc: "Browser: acts.co.za — Labour Relations Act amendments, 50 mins",           duration: 0.8, units: 8,  attorney: SEED_ATTORNEYS[4], matter: SEED_MATTERS[3]  },
 ];
 
 const TYPE_LABELS = {
@@ -45,13 +84,14 @@ const TYPE_LABELS = {
 };
 
 // ── Assign Modal ───────────────────────────────────────────────────────────────
-function AssignModal({ event, onAssign, onDismiss }) {
-  const [matter, setMatter] = useState(event.suggestedMatter);
+function AssignModal({ event, onAssign, onDismiss, matters, saving }) {
+  const [matterId, setMatterId] = useState(event.suggestedMatterId || (matters[0]?.id ?? "") || "");
+  const attorneyId = event.suggestedAttorneyId;
   const [duration, setDuration] = useState(event.duration);
   const [note, setNote] = useState(event.desc);
 
   const units = Math.ceil(duration * 10); // 6-min units
-  const selectedMatter = MATTERS.find((m) => m.id === matter);
+  const selectedMatter = matters.find((m) => m.id === Number(matterId));
 
   return (
     <div
@@ -83,7 +123,11 @@ function AssignModal({ event, onAssign, onDismiss }) {
           {/* Auto-detected info */}
           <div style={{ background: "rgba(141,198,63,0.06)", border: "1px solid rgba(141,198,63,0.15)", borderRadius: "8px", padding: "12px 14px", marginBottom: "18px" }}>
             <p style={{ fontSize: "10px", color: "rgba(141,198,63,0.7)", letterSpacing: "1.5px", textTransform: "uppercase", margin: "0 0 4px" }}>Auto-Detected Activity</p>
-            <p style={{ fontSize: "12px", color: "rgba(255,255,255,0.7)", margin: 0, lineHeight: 1.5 }}>{event.desc}</p>
+            <p style={{ fontSize: "12px", color: "rgba(255,255,255,0.7)", margin: "0 0 8px", lineHeight: 1.5 }}>{event.desc}</p>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)", letterSpacing: "0.5px" }}>DETECTED ON DEVICE OF</span>
+              <span style={{ fontSize: "11px", fontWeight: 700, color: "#8DC63F", background: "rgba(141,198,63,0.12)", border: "1px solid rgba(141,198,63,0.25)", padding: "2px 10px", borderRadius: "20px" }}>{event.attorney}</span>
+            </div>
           </div>
 
           {/* Matter select */}
@@ -93,12 +137,12 @@ function AssignModal({ event, onAssign, onDismiss }) {
             </label>
             <div style={{ position: "relative" }}>
               <select
-                value={matter}
-                onChange={(e) => setMatter(Number(e.target.value))}
+                value={matterId}
+                onChange={(e) => setMatterId(e.target.value)}
                 style={{ width: "100%", appearance: "none", background: "#080D1A", border: "1px solid rgba(141,198,63,0.25)", borderRadius: "7px", color: "#fff", fontSize: "13px", padding: "10px 36px 10px 12px", outline: "none", fontFamily: "'Inter', sans-serif", cursor: "pointer" }}
               >
-                {MATTERS.map((m) => (
-                  <option key={m.id} value={m.id} style={{ background: "#0D1426" }}>{m.ref} — {m.name}</option>
+                {matters.map((m) => (
+                  <option key={m.id} value={m.id} style={{ background: "#0D1426" }}>{m.matterNumber} — {m.clientName}</option>
                 ))}
               </select>
               <ChevronDown style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", width: "14px", height: "14px", color: "rgba(255,255,255,0.3)", pointerEvents: "none" }} />
@@ -142,10 +186,10 @@ function AssignModal({ event, onAssign, onDismiss }) {
           {/* Actions */}
           <div style={{ display: "flex", gap: "10px" }}>
             <button
-              onClick={() => onAssign({ ...event, matter: selectedMatter, duration, units, note })}
+              onClick={() => onAssign({ ...event, matterId: Number(matterId), attorneyId: Number(attorneyId), matter: selectedMatter, attorney: event.attorney, duration, units, note })}
               style={{ flex: 1, fontSize: "13px", fontWeight: 700, color: "#0A0F1E", background: "#8DC63F", border: "none", borderRadius: "7px", padding: "11px", cursor: "pointer", letterSpacing: "0.3px" }}
             >
-              ✓ Confirm & Save Entry
+              {saving ? "Saving to API…" : "✓ Confirm & Save Entry"}
             </button>
             <button
               onClick={onDismiss}
@@ -249,9 +293,40 @@ export function ActivityFeed() {
   const [filter, setFilter] = useState("all");
   const [visible, setVisible] = useState(false);
   const [stats, setStats] = useState({ total: 0, assigned: 0, pending: 0, dismissed: 0 });
+  const [matters, setMatters] = useState([]);
+  const [attorneys, setAttorneys] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [apiError, setApiError] = useState(null);
   const poolIndex = useRef(0);
   const intervalRef = useRef(null);
   const idCounter = useRef(0);
+
+  // Fetch real matters and attorneys from API on mount
+  useEffect(() => {
+    // Pre-load seed data immediately so modal never shows empty dropdowns
+    setMatters(SEED_MATTERS);
+    setAttorneys(SEED_ATTORNEYS);
+
+    // Then try to fetch live API data — overrides seed if available
+    Promise.all([
+      fetch(`${API}/Matter`).then((r) => r.json()).catch(() => []),
+      fetch(`${API}/Attorney`).then((r) => r.json()).catch(() => []),
+    ]).then(([mats, atts]) => {
+      const mappedMatters = mats.map((m) => ({
+        id:           m.Id          ?? m.id,
+        matterNumber: (m.MatterNumber ?? m.matterNumber) || "—",
+        clientName:   (m.ClientName   ?? m.clientName)   || "—",
+      }));
+      const mappedAttorneys = atts.map((a) => ({
+        id:   a.Id   ?? a.id,
+        name: (a.Name ?? a.name) || "—",
+      }));
+      if (mappedMatters.length > 0) setMatters(mappedMatters);
+      if (mappedAttorneys.length > 0) setAttorneys(mappedAttorneys);
+    }).catch(() => {
+      // Seed data already loaded above — silently continue
+    });
+  }, []);
 
   useEffect(() => { setTimeout(() => setVisible(true), 50); }, []);
 
@@ -266,13 +341,31 @@ export function ActivityFeed() {
   }, [feed]);
 
   const addEvent = () => {
-    const template = EVENT_POOL[poolIndex.current % EVENT_POOL.length];
+    const template = EVENT_TEMPLATES[poolIndex.current % EVENT_TEMPLATES.length];
     poolIndex.current += 1;
     const now = new Date();
     const timestamp = now.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
     const id = ++idCounter.current;
 
-    const newEvent = { ...template, id, status: "pending", timestamp, matter: null };
+    // Use attorney + matter baked into template (from seed data)
+    // Fall back to live API data if available (API takes priority)
+    const resolvedAttorney = template.attorney;
+    const resolvedMatter   = template.matter;
+
+    // If API returned data, try to find matching IDs for real API posting
+    const apiAttorney = attorneys.find((a) => a.name === resolvedAttorney?.name) || resolvedAttorney;
+    const apiMatter   = matters.find((m) => m.matterNumber === resolvedMatter?.matterNumber) || resolvedMatter;
+
+    const newEvent = {
+      ...template,
+      id,
+      status: "pending",
+      timestamp,
+      matter: null,
+      attorney: resolvedAttorney?.name || "Unknown Attorney",
+      suggestedAttorneyId: apiAttorney?.id || resolvedAttorney?.id || null,
+      suggestedMatterId:   apiMatter?.id   || resolvedMatter?.id   || null,
+    };
 
     setFeed((prev) => [newEvent, ...prev]);
     setNewIds((prev) => new Set([...prev, id]));
@@ -292,15 +385,41 @@ export function ActivityFeed() {
 
   useEffect(() => () => clearInterval(intervalRef.current), []);
 
-  const handleAssign = (assigned) => {
-    setFeed((prev) =>
-      prev.map((item) =>
-        item.id === assigned.id
-          ? { ...item, status: "assigned", matter: assigned.matter, duration: assigned.duration, units: assigned.units, desc: assigned.note }
-          : item
-      )
-    );
-    setAssignTarget(null);
+  const handleAssign = async (assigned) => {
+    setSaving(true);
+    try {
+      const payload = {
+        AttorneyId: assigned.attorneyId,
+        MatterId:   assigned.matterId,
+        Narrative:  assigned.note,
+        Category:   assigned.type.charAt(0).toUpperCase() + assigned.type.slice(1),
+        Units:      assigned.units,
+        WorkDate:   new Date().toISOString().split("T")[0],
+      };
+      const res = await fetch(`${API}/TimeEntry`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const msg = await res.text().catch(() => res.status);
+        throw new Error(msg);
+      }
+      // Update local feed state on success
+      setFeed((prev) =>
+        prev.map((item) =>
+          item.id === assigned.id
+            ? { ...item, status: "assigned", matter: assigned.matter, attorney: assigned.attorney, duration: assigned.duration, units: assigned.units, desc: assigned.note }
+            : item
+        )
+      );
+      setAssignTarget(null);
+    } catch (err) {
+      console.error("Failed to save time entry:", err);
+      alert(`Failed to save: ${err.message || "API error"}`);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDismiss = (id) => {
@@ -486,11 +605,18 @@ export function ActivityFeed() {
       )}
 
       {/* ── Assign Modal ── */}
+      {apiError && (
+        <div style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", borderRadius: "8px", padding: "10px 16px", marginBottom: "16px", fontSize: "12px", color: "#f59e0b" }}>
+          ⚠ {apiError}
+        </div>
+      )}
       {assignTarget && (
         <AssignModal
           event={assignTarget}
           onAssign={handleAssign}
           onDismiss={() => setAssignTarget(null)}
+          matters={matters}
+          saving={saving}
         />
       )}
     </div>
