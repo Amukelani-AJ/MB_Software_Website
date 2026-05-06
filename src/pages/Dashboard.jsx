@@ -1,21 +1,13 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Clock,
-  DollarSign,
-  Briefcase,
-  FileText,
-  Play,
-  ArrowUpRight,
-  AlertTriangle,
-  ChevronRight,
-  Users,
-  TrendingUp,
+  Clock, DollarSign, Briefcase, FileText,
+  Play, ArrowUpRight, AlertTriangle,
+  ChevronRight, Users, TrendingUp,
 } from "lucide-react";
 
 const API = "https://localhost:7291/api";
 
-// ── Seed attorneys (matches your DB seed) ─────────────────────────────────────
 const SEED_ATTORNEYS = [
   { id: 1, name: "Amukelani Ndlovu" },
   { id: 2, name: "Pieter Venter" },
@@ -27,40 +19,33 @@ const SEED_ATTORNEYS = [
   { id: 8, name: "Lerato Sithole" },
 ];
 
-// ── Live simulated activity feed ─────────────────────────────────────────────
 const LIVE_EVENTS = [
-  { id: 1,  type: "email",   attorney: "Amukelani Ndlovu", desc: "Email sent to Transnet re: arbitration hearing date",       time: 2  },
-  { id: 2,  type: "doc",     attorney: "Pieter Venter",    desc: "Heads_of_Argument_v4.docx — 38 min active editing",         time: 8  },
-  { id: 3,  type: "call",    attorney: "Sipho Mokoena",    desc: "Call logged: SARS legal team — tax objection (22 min)",      time: 15 },
-  { id: 4,  type: "meeting", attorney: "Zanele Dlamini",   desc: "Calendar: Dlamini Investments consultation captured",        time: 31 },
-  { id: 5,  type: "browser", attorney: "Ruan Esterhuizen", desc: "Browser: saflii.org open 45 min — mining rights precedents", time: 47 },
-  { id: 6,  type: "email",   attorney: "Nomsa Khumalo",    desc: "Email received: Pick n Pay — contract amendment queries",    time: 62 },
-  { id: 7,  type: "doc",     attorney: "David Ferreira",   desc: "Settlement_Agreement_Draft.docx — 19 min editing",          time: 75 },
-  { id: 8,  type: "call",    attorney: "Lerato Sithole",   desc: "Call: Discovery Health — benefit dispute (11 min)",          time: 90 },
+  { id: 1, type: "email",   attorney: "Amukelani Ndlovu", desc: "Email sent to Transnet re: arbitration hearing date",        time: 2  },
+  { id: 2, type: "doc",     attorney: "Pieter Venter",    desc: "Heads_of_Argument_v4.docx — 38 min active editing",          time: 8  },
+  { id: 3, type: "call",    attorney: "Sipho Mokoena",    desc: "Call logged: SARS legal team — tax objection (22 min)",       time: 15 },
+  { id: 4, type: "meeting", attorney: "Zanele Dlamini",   desc: "Calendar: Dlamini Investments consultation captured",         time: 31 },
+  { id: 5, type: "browser", attorney: "Ruan Esterhuizen", desc: "Browser: saflii.org open 45 min — mining rights precedents",  time: 47 },
+  { id: 6, type: "email",   attorney: "Nomsa Khumalo",    desc: "Email received: Pick n Pay — contract amendment queries",     time: 62 },
+  { id: 7, type: "doc",     attorney: "David Ferreira",   desc: "Settlement_Agreement_Draft.docx — 19 min editing",           time: 75 },
+  { id: 8, type: "call",    attorney: "Lerato Sithole",   desc: "Call: Discovery Health — benefit dispute (11 min)",           time: 90 },
 ];
 
-const activityIcon = (type) => ({
-  email: "✉", doc: "📄", call: "📞", meeting: "📅", browser: "🌐", invoice: "🧾"
-}[type] || "•");
+const activityIcon = (type) =>
+  ({ email: "✉", doc: "📄", call: "📞", meeting: "📅", browser: "🌐", invoice: "🧾" }[type] || "•");
 
 const fmtR = (n) =>
   `R ${Number(n || 0).toLocaleString("en-ZA", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
 const toDateStr = (d) => (d ? d.split("T")[0] : "");
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
 const nowDateStr = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
-
 const nowMonthStr = () => nowDateStr().slice(0, 7);
 
-const friendlyDate = () => {
-  return new Date().toLocaleDateString("en-ZA", {
-    weekday: "long", day: "numeric", month: "long", year: "numeric",
-  });
-};
+const friendlyDate = () =>
+  new Date().toLocaleDateString("en-ZA", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
 const greeting = () => {
   const h = new Date().getHours();
@@ -69,28 +54,25 @@ const greeting = () => {
   return "Good evening";
 };
 
-// ── Main Component ────────────────────────────────────────────────────────────
-export function Dashboard({ role = "manager" }) {
+const AVATAR_HUES = [85, 103, 118, 133, 148, 163, 178, 193];
+
+export function Dashboard() {
   const navigate = useNavigate();
-  const [elapsed, setElapsed]       = useState(0);
+  const [elapsed, setElapsed]           = useState(0);
   const [timerRunning, setTimerRunning] = useState(false);
-  const [visible, setVisible]       = useState(false);
+  const [visible, setVisible]           = useState(false);
+  const [timeEntries, setTimeEntries]   = useState([]);
+  const [matters, setMatters]           = useState([]);
+  const [invoices, setInvoices]         = useState([]);
+  const [attorneys, setAttorneys]       = useState([]);
+  const [loading, setLoading]           = useState(true);
 
-  const [timeEntries, setTimeEntries] = useState([]);
-  const [matters, setMatters]         = useState([]);
-  const [invoices, setInvoices]       = useState([]);
-  const [attorneys, setAttorneys]     = useState([]);
-  const [loading, setLoading]         = useState(true);
-
-  // ── Fetch ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     const fetchAll = async () => {
       try {
         const [teRes, mRes, invRes, attRes] = await Promise.all([
-          fetch(`${API}/TimeEntry`),
-          fetch(`${API}/Matter`),
-          fetch(`${API}/Invoice`),
-          fetch(`${API}/Attorney`),
+          fetch(`${API}/TimeEntry`), fetch(`${API}/Matter`),
+          fetch(`${API}/Invoice`),  fetch(`${API}/Attorney`),
         ]);
         const [te, m, inv, att] = await Promise.all([
           teRes.json(), mRes.json(), invRes.json(), attRes.json(),
@@ -99,8 +81,7 @@ export function Dashboard({ role = "manager" }) {
         setMatters(Array.isArray(m)       ? m   : []);
         setInvoices(Array.isArray(inv)    ? inv : []);
         setAttorneys(Array.isArray(att)   ? att : SEED_ATTORNEYS);
-      } catch (e) {
-        console.error("Dashboard fetch error:", e);
+      } catch {
         setAttorneys(SEED_ATTORNEYS);
       } finally {
         setLoading(false);
@@ -110,7 +91,6 @@ export function Dashboard({ role = "manager" }) {
     fetchAll();
   }, []);
 
-  // ── Timer ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     let iv;
     if (timerRunning) iv = setInterval(() => setElapsed((s) => s + 1), 1000);
@@ -125,92 +105,71 @@ export function Dashboard({ role = "manager" }) {
   };
 
   // ── Derived stats ──────────────────────────────────────────────────────────
-  const today      = nowDateStr();
-  const thisMonth  = nowMonthStr();
+  const today     = nowDateStr();
+  const thisMonth = nowMonthStr();
 
   const todayEntries   = timeEntries.filter((e) => toDateStr(e.WorkDate ?? e.workDate) === today);
   const hoursToday     = todayEntries.reduce((s, e) => s + ((e.Units ?? e.units ?? 0) * 6) / 60, 0);
-
   const monthEntries   = timeEntries.filter((e) => toDateStr(e.WorkDate ?? e.workDate).startsWith(thisMonth));
   const billableMonth  = monthEntries.reduce((s, e) => s + (e.BilledAmount ?? e.billedAmount ?? 0), 0);
   const totalBilledAll = timeEntries.reduce((s, e) => s + (e.BilledAmount ?? e.billedAmount ?? 0), 0);
   const billingRate    = totalBilledAll > 0 ? Math.round((billableMonth / totalBilledAll) * 100) : 0;
 
-  const activeMatters  = matters.filter((m) => {
-    const s = (m.Status ?? m.status ?? "").toLowerCase();
-    return s === "active" || s === "open";
-  });
-
-  const pendingInvoices = invoices.filter(
-    (i) => (i.Status ?? i.status ?? "").toLowerCase() !== "paid"
-  );
+  const activeMatters   = matters.filter((m) => ["active", "open"].includes((m.Status ?? m.status ?? "").toLowerCase()));
+  const pendingInvoices = invoices.filter((i) => (i.Status ?? i.status ?? "").toLowerCase() !== "paid");
   const pendingAmount   = pendingInvoices.reduce((s, i) => s + (i.TotalAmount ?? i.totalAmount ?? 0), 0);
   const paidAmount      = invoices.filter((i) => (i.Status ?? i.status ?? "").toLowerCase() === "paid")
                             .reduce((s, i) => s + (i.TotalAmount ?? i.totalAmount ?? 0), 0);
   const totalBilledInv  = invoices.reduce((s, i) => s + (i.TotalAmount ?? i.totalAmount ?? 0), 0);
   const billedPct       = totalBilledInv > 0 ? Math.round((paidAmount / totalBilledInv) * 100) : 0;
 
-  // Recent entries (last 5)
   const recentEntries = [...timeEntries]
-    .sort((a, b) => {
-      const da = toDateStr(b.WorkDate ?? b.workDate);
-      const db = toDateStr(a.WorkDate ?? a.workDate);
-      return da.localeCompare(db);
-    })
+    .sort((a, b) => toDateStr(b.WorkDate ?? b.workDate).localeCompare(toDateStr(a.WorkDate ?? a.workDate)))
     .slice(0, 5)
     .map((e) => ({
-      id:       e.Id        ?? e.id,
-      matter:   e.ClientName  ?? e.clientName  ?? "—",
+      id:       e.Id ?? e.id,
+      matter:   e.ClientName   ?? e.clientName   ?? "—",
       ref:      e.MatterNumber ?? e.matterNumber ?? "—",
-      task:     e.Narrative  ?? e.narrative   ?? "—",
+      task:     e.Narrative    ?? e.narrative    ?? "—",
       attorney: e.AttorneyName ?? e.attorneyName ?? "—",
-      duration: `${(((e.Units ?? e.units ?? 0) * 6) / 60).toFixed(1)} hrs`,
       units:    e.Units ?? e.units ?? 0,
-      rate:     e.HourlyRate  ?? e.hourlyRate  ?? 0,
       billed:   e.BilledAmount ?? e.billedAmount ?? 0,
       date:     toDateStr(e.WorkDate ?? e.workDate) || "—",
     }));
 
-  // Per-attorney billing bar chart data
   const attorneyHours = timeEntries.reduce((acc, e) => {
     const name = e.AttorneyName ?? e.attorneyName;
     if (!name) return acc;
-    const shortName = name.split(" ").map((w, i) => i === 0 ? w[0] + "." : w).join(" ");
-    acc[shortName] = (acc[shortName] || 0) + ((e.Units ?? e.units ?? 0) * 6) / 60;
+    const short = name.split(" ").map((w, i) => i === 0 ? w[0] + "." : w).join(" ");
+    acc[short] = (acc[short] || 0) + ((e.Units ?? e.units ?? 0) * 6) / 60;
     return acc;
   }, {});
-
   const attorneyBilling = timeEntries.reduce((acc, e) => {
     const name = e.AttorneyName ?? e.attorneyName;
     if (!name) return acc;
-    const shortName = name.split(" ").map((w, i) => i === 0 ? w[0] + "." : w).join(" ");
-    acc[shortName] = (acc[shortName] || 0) + (e.BilledAmount ?? e.billedAmount ?? 0);
+    const short = name.split(" ").map((w, i) => i === 0 ? w[0] + "." : w).join(" ");
+    acc[short] = (acc[short] || 0) + (e.BilledAmount ?? e.billedAmount ?? 0);
     return acc;
   }, {});
 
-  // If no real data, fall back to seed attorneys with placeholder data
   const barData = (() => {
     const keys = Object.keys(attorneyHours);
-    if (keys.length > 0) {
+    if (keys.length > 0)
       return keys
         .map((k) => ({ name: k, hours: parseFloat(attorneyHours[k].toFixed(1)), billed: attorneyBilling[k] || 0 }))
         .sort((a, b) => b.hours - a.hours)
         .slice(0, 6);
-    }
-    // Seed fallback for demo
     return [
-      { name: "A. Ndlovu",    hours: 42.5, billed: 76500  },
-      { name: "P. Venter",    hours: 38.0, billed: 68400  },
-      { name: "S. Mokoena",   hours: 35.5, billed: 63900  },
-      { name: "Z. Dlamini",   hours: 31.0, billed: 55800  },
+      { name: "A. Ndlovu",      hours: 42.5, billed: 76500 },
+      { name: "P. Venter",      hours: 38.0, billed: 68400 },
+      { name: "S. Mokoena",     hours: 35.5, billed: 63900 },
+      { name: "Z. Dlamini",     hours: 31.0, billed: 55800 },
       { name: "R. Esterhuizen", hours: 28.5, billed: 51300 },
-      { name: "N. Khumalo",   hours: 24.0, billed: 43200  },
+      { name: "N. Khumalo",     hours: 24.0, billed: 43200 },
     ];
   })();
-
   const maxHours = Math.max(...barData.map((d) => d.hours), 1);
 
-  // Active matters list (top 4)
   const matterHoursMap = timeEntries.reduce((acc, e) => {
     const key = e.MatterNumber ?? e.matterNumber;
     if (!key) return acc;
@@ -219,306 +178,214 @@ export function Dashboard({ role = "manager" }) {
   }, {});
 
   const activeMattersList = activeMatters.slice(0, 4).map((m) => ({
-    id:     m.Id    ?? m.id,
-    name:   m.ClientName ?? m.clientName ?? "—",
-    ref:    m.MatterNumber ?? m.matterNumber ?? "—",
-    desc:   m.Description ?? m.description ?? "",
-    hours:  parseFloat((matterHoursMap[m.MatterNumber ?? m.matterNumber] || 0).toFixed(1)),
-    budget: 60,
-    initial:(m.ClientName ?? m.clientName ?? "?")[0].toUpperCase(),
+    id:      m.Id ?? m.id,
+    name:    m.ClientName   ?? m.clientName   ?? "—",
+    ref:     m.MatterNumber ?? m.matterNumber ?? "—",
+    hours:   parseFloat((matterHoursMap[m.MatterNumber ?? m.matterNumber] || 0).toFixed(1)),
+    budget:  60,
+    initial: (m.ClientName ?? m.clientName ?? "?")[0].toUpperCase(),
   }));
 
   const STATS = [
-    {
-      id: 1, label: "Hours Today",
-      value: hoursToday.toFixed(1), unit: "hrs",
-      sub: `${todayEntries.length} entries logged today`,
-      up: true, icon: Clock, accent: "#8DC63F",
-    },
-    {
-      id: 2, label: "Billable This Month",
-      value: fmtR(billableMonth), unit: "",
-      sub: `${billingRate}% of total billing`,
-      up: true, icon: DollarSign, accent: "#8DC63F",
-    },
-    {
-      id: 3, label: "Active Matters",
-      value: String(activeMatters.length), unit: "",
-      sub: `${matters.length} total matters`,
-      up: true, icon: Briefcase, accent: "#8DC63F",
-    },
-    {
-      id: 4, label: "Pending Invoices",
-      value: String(pendingInvoices.length), unit: "",
-      sub: `${fmtR(pendingAmount)} outstanding`,
-      up: false, icon: FileText, accent: "#f59e0b",
-    },
+    { id: 1, label: "Hours Today",        value: hoursToday.toFixed(1),         unit: "hrs", sub: `${todayEntries.length} entries logged today`,  up: true,  icon: Clock      },
+    { id: 2, label: "Billable This Month", value: fmtR(billableMonth),           unit: "",    sub: `${billingRate}% of total billing`,              up: true,  icon: DollarSign },
+    { id: 3, label: "Active Matters",      value: String(activeMatters.length),  unit: "",    sub: `${matters.length} total matters`,               up: true,  icon: Briefcase  },
+    { id: 4, label: "Pending Invoices",    value: String(pendingInvoices.length),unit: "",    sub: `${fmtR(pendingAmount)} outstanding`,             up: false, icon: FileText   },
   ];
 
-  const fadeIn = (delay = 0) => ({
-    opacity: visible ? 1 : 0,
-    transform: visible ? "translateY(0)" : "translateY(14px)",
-    transition: `opacity 0.5s ease ${delay}ms, transform 0.5s ease ${delay}ms`,
-  });
-
-  const card = {
-    background: "#0D1426",
-    border: "1px solid rgba(141,198,63,0.12)",
-    borderRadius: "12px",
-  };
+  const show = visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3";
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div style={{ minHeight: "100%", background: "#080D1A", padding: "28px 32px", fontFamily: "'Inter', sans-serif", color: "#fff" }}>
+    <div className="min-h-full bg-[#080D1A] px-8 py-7 font-sans text-white">
 
-      {/* ── Pending invoices alert ── */}
+      {/* Pending invoices alert */}
       {!loading && pendingInvoices.length > 0 && (
         <div
-          style={{
-            ...fadeIn(0),
-            marginBottom: "20px",
-            background: "rgba(245,158,11,0.07)",
-            border: "1px solid rgba(245,158,11,0.25)",
-            borderRadius: "10px",
-            padding: "12px 18px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            cursor: "pointer",
-          }}
           onClick={() => navigate("/billing")}
+          className={`mb-5 flex cursor-pointer items-center justify-between rounded-xl border border-amber-500/25 bg-amber-500/[0.07] px-5 py-3 transition-all duration-500 ${show}`}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <AlertTriangle style={{ width: "15px", height: "15px", color: "#f59e0b", flexShrink: 0 }} />
-            <span style={{ fontSize: "13px", color: "rgba(255,255,255,0.7)" }}>
-              <span style={{ color: "#f59e0b", fontWeight: 700 }}>{pendingInvoices.length} invoice{pendingInvoices.length > 1 ? "s" : ""}</span>
-              {" "}pending payment — {fmtR(pendingAmount)} outstanding
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
+            <span className="text-sm text-white/70">
+              <span className="font-bold text-amber-400">
+                {pendingInvoices.length} invoice{pendingInvoices.length > 1 ? "s" : ""}
+              </span>{" "}
+              pending payment — {fmtR(pendingAmount)} outstanding
             </span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px", color: "#f59e0b", fontWeight: 600, letterSpacing: "0.5px" }}>
-            Review <ChevronRight style={{ width: "13px", height: "13px" }} />
+          <div className="flex items-center gap-1 text-xs font-semibold tracking-wide text-amber-400">
+            Review <ChevronRight className="h-3 w-3" />
           </div>
         </div>
       )}
 
-      {/* ── Header ── */}
-      <div style={{ ...fadeIn(0), display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: "28px" }}>
+      {/* Header */}
+      <div className={`mb-7 flex items-end justify-between transition-all duration-500 ${show}`}>
         <div>
-          <p style={{ fontSize: "11px", color: "#8DC63F", letterSpacing: "3px", textTransform: "uppercase", margin: 0 }}>
-            {friendlyDate()}
-          </p>
-          <h2 style={{ fontSize: "26px", fontWeight: 700, margin: "4px 0 0", color: "#fff", letterSpacing: "-0.5px" }}>
-            {greeting()}
-          </h2>
-          <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.35)", margin: "4px 0 0" }}>
+          <p className="m-0 text-[11px] uppercase tracking-[3px] text-[#8DC63F]">{friendlyDate()}</p>
+          <h2 className="m-0 mt-1 text-2xl font-bold tracking-tight">{greeting()}, Amukelani.</h2>
+          <p className="m-0 mt-1 text-[13px] text-white/35">
             {loading
               ? "Loading your dashboard…"
-              : role === "attorney" ? `${todayEntries.length} entries today · ${hoursToday.toFixed(1)} hrs logged` : `${recentEntries.length} recent time entries · ${activeMatters.length} active matters · ${attorneys.length || SEED_ATTORNEYS.length} attorneys`
-            }
+              : `${recentEntries.length} recent time entries · ${activeMatters.length} active matters · ${attorneys.length || SEED_ATTORNEYS.length} attorneys`}
           </p>
         </div>
 
         {/* Quick timer */}
-        <div
-          style={{
-            ...card,
-            borderColor: timerRunning ? "#8DC63F" : "rgba(141,198,63,0.2)",
-            padding: "14px 20px",
-            display: "flex",
-            alignItems: "center",
-            gap: "16px",
-            boxShadow: timerRunning ? "0 0 24px rgba(141,198,63,0.15)" : "none",
-            transition: "all 0.3s ease",
-          }}
-        >
+        <div className={`flex items-center gap-4 rounded-xl border bg-[#0D1426] px-5 py-3 transition-all duration-300 ${timerRunning ? "border-[#8DC63F] shadow-[0_0_24px_rgba(141,198,63,0.15)]" : "border-[#8DC63F]/20"}`}>
           <div>
-            <p style={{ fontSize: "9px", color: "rgba(255,255,255,0.35)", letterSpacing: "2px", textTransform: "uppercase", margin: 0 }}>
-              Quick Timer
-            </p>
-            <p
-              style={{
-                fontSize: "24px",
-                fontWeight: 700,
-                color: timerRunning ? "#8DC63F" : "rgba(255,255,255,0.5)",
-                fontVariantNumeric: "tabular-nums",
-                margin: "2px 0 0",
-                letterSpacing: "2px",
-                fontFamily: "'Courier New', monospace",
-                transition: "color 0.3s ease",
-              }}
-            >
+            <p className="m-0 text-[9px] uppercase tracking-[2px] text-white/35">Quick Timer</p>
+            <p className={`m-0 mt-0.5 font-mono text-2xl font-bold tabular-nums tracking-widest transition-colors duration-300 ${timerRunning ? "text-[#8DC63F]" : "text-white/50"}`}>
               {fmtElapsed(elapsed)}
             </p>
           </div>
           <button
             onClick={() => setTimerRunning(!timerRunning)}
-            style={{
-              width: "40px",
-              height: "40px",
-              borderRadius: "50%",
-              border: "none",
-              background: timerRunning ? "rgba(141,198,63,0.2)" : "#8DC63F",
-              color: timerRunning ? "#8DC63F" : "#0A0F1E",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transition: "all 0.2s ease",
-            }}
+            className={`flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none transition-all duration-200 ${timerRunning ? "bg-[#8DC63F]/20 text-[#8DC63F]" : "bg-[#8DC63F] text-[#0A0F1E]"}`}
           >
             {timerRunning
-              ? <span style={{ width: "10px", height: "10px", background: "currentColor", borderRadius: "2px" }} />
-              : <Play style={{ width: "16px", height: "16px", marginLeft: "2px" }} />
-            }
+              ? <span className="h-2.5 w-2.5 rounded-sm bg-current" />
+              : <Play className="ml-0.5 h-4 w-4" />}
           </button>
         </div>
       </div>
 
-      {/* ── Stat cards ── */}
-      <div style={{ ...fadeIn(100), display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px", marginBottom: "24px" }}>
-        {loading
-          ? (
-            <div style={{ gridColumn: "1/-1", display: "flex", alignItems: "center", justifyContent: "center", padding: "32px 0", gap: "10px" }}>
-              <div style={{ width: "18px", height: "18px", border: "2px solid rgba(141,198,63,0.2)", borderTop: "2px solid #8DC63F", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-              <span style={{ color: "rgba(255,255,255,0.3)", fontSize: "12px" }}>Loading dashboard…</span>
-              <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-            </div>
-          )
-          : STATS.map((stat) => {
-            const Icon = stat.icon;
-            return (
-              <div
-                key={stat.id}
-                style={{ ...card, padding: "20px", position: "relative", overflow: "hidden", cursor: "default", transition: "border-color 0.2s ease, transform 0.2s ease" }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(141,198,63,0.4)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(141,198,63,0.12)"; e.currentTarget.style.transform = "translateY(0)"; }}
-              >
-                <div style={{ position: "absolute", top: "-20px", right: "-20px", width: "80px", height: "80px", background: `radial-gradient(circle, ${stat.accent}18 0%, transparent 70%)`, borderRadius: "50%" }} />
-                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "12px" }}>
-                  <div style={{ width: "36px", height: "36px", borderRadius: "8px", background: `${stat.accent}18`, border: `1px solid ${stat.accent}30`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <Icon style={{ width: "16px", height: "16px", color: stat.accent }} />
-                  </div>
-                  <ArrowUpRight style={{ width: "14px", height: "14px", color: stat.up ? "#8DC63F" : "#f59e0b", transform: stat.up ? "rotate(0deg)" : "rotate(90deg)" }} />
+      {/* Stat cards */}
+      <div className={`mb-6 grid grid-cols-4 gap-4 transition-all delay-100 duration-500 ${show}`}>
+        {loading ? (
+          <div className="col-span-4 flex items-center justify-center gap-3 py-8">
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#8DC63F]/20 border-t-[#8DC63F]" />
+            <span className="text-[13px] text-white/30">Loading dashboard…</span>
+          </div>
+        ) : STATS.map((stat) => {
+          const Icon = stat.icon;
+          return (
+            <div
+              key={stat.id}
+              className="group relative cursor-default overflow-hidden rounded-xl border border-[#8DC63F]/[0.12] bg-[#0D1426] p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-[#8DC63F]/40"
+            >
+              <div className={`absolute -right-5 -top-5 h-20 w-20 rounded-full ${stat.up ? "bg-[#8DC63F]/[0.06]" : "bg-amber-500/[0.06]"}`} />
+              <div className="mb-3 flex items-start justify-between">
+                <div className={`flex h-9 w-9 items-center justify-center rounded-lg border ${stat.up ? "border-[#8DC63F]/30 bg-[#8DC63F]/10" : "border-amber-500/30 bg-amber-500/10"}`}>
+                  <Icon className={`h-4 w-4 ${stat.up ? "text-[#8DC63F]" : "text-amber-400"}`} />
                 </div>
-                <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", letterSpacing: "1px", textTransform: "uppercase", margin: 0 }}>{stat.label}</p>
-                <p style={{ fontSize: "22px", fontWeight: 700, color: "#fff", margin: "4px 0 2px", letterSpacing: "-0.5px" }}>
-                  {stat.value}
-                  {stat.unit && <span style={{ fontSize: "13px", color: "rgba(255,255,255,0.4)", marginLeft: "4px" }}>{stat.unit}</span>}
-                </p>
-                <p style={{ fontSize: "11px", color: stat.up ? "#8DC63F" : "#f59e0b", margin: 0 }}>{stat.sub}</p>
+                <ArrowUpRight className={`h-3.5 w-3.5 ${stat.up ? "text-[#8DC63F]" : "rotate-90 text-amber-400"}`} />
               </div>
-            );
-          })
-        }
+              <p className="m-0 text-[11px] uppercase tracking-widest text-white/40">{stat.label}</p>
+              <p className="m-0 mt-1 text-[22px] font-bold tracking-tight">
+                {stat.value}
+                {stat.unit && <span className="ml-1 text-[13px] text-white/40">{stat.unit}</span>}
+              </p>
+              <p className={`m-0 mt-0.5 text-[11px] ${stat.up ? "text-[#8DC63F]" : "text-amber-400"}`}>{stat.sub}</p>
+            </div>
+          );
+        })}
       </div>
 
-      {/* ── Main grid ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "20px" }}>
+      {/* Main grid */}
+      <div className="grid grid-cols-[1fr_320px] gap-5">
 
         {/* LEFT COLUMN */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+        <div className="flex flex-col gap-5">
 
-          {/* Recent Time Entries table */}
-          <div style={{ ...fadeIn(150), ...card, overflow: "hidden" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 20px", borderBottom: "1px solid rgba(141,198,63,0.1)" }}>
+          {/* Recent Time Entries */}
+          <div className={`overflow-hidden rounded-xl border border-[#8DC63F]/[0.12] bg-[#0D1426] transition-all delay-150 duration-500 ${show}`}>
+            <div className="flex items-center justify-between border-b border-[#8DC63F]/10 px-5 py-4">
               <div>
-                <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#fff", margin: 0 }}>Recent Time Entries</h3>
-                <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)", margin: "2px 0 0" }}>Latest captured activity across all attorneys</p>
+                <h3 className="m-0 text-sm font-bold">Recent Time Entries</h3>
+                <p className="m-0 mt-0.5 text-[11px] text-white/35">Latest captured activity across all attorneys</p>
               </div>
               <button
                 onClick={() => navigate("/time-entries")}
-                style={{ fontSize: "11px", color: "#8DC63F", background: "rgba(141,198,63,0.1)", border: "1px solid rgba(141,198,63,0.25)", borderRadius: "6px", padding: "5px 12px", cursor: "pointer", letterSpacing: "0.5px", display: "flex", alignItems: "center", gap: "4px" }}
+                className="flex cursor-pointer items-center gap-1 rounded-md border border-[#8DC63F]/25 bg-[#8DC63F]/10 px-3 py-1.5 text-[11px] tracking-wide text-[#8DC63F] transition-colors hover:bg-[#8DC63F]/20"
               >
-                View All <ChevronRight style={{ width: "12px", height: "12px" }} />
+                View All <ChevronRight className="h-3 w-3" />
               </button>
             </div>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <table className="w-full border-collapse">
               <thead>
-                <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                <tr className="border-b border-white/5">
                   {["Matter", "Task", "Attorney", "Date", "Units", "Billed"].map((h) => (
-                    <th key={h} style={{ padding: "10px 20px", textAlign: "left", fontSize: "10px", fontWeight: 600, color: "rgba(255,255,255,0.3)", letterSpacing: "1.5px", textTransform: "uppercase" }}>{h}</th>
+                    <th key={h} className="px-5 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[1.5px] text-white/30">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {loading
-                  ? <tr><td colSpan={6} style={{ padding: "32px", textAlign: "center", color: "rgba(255,255,255,0.25)", fontSize: "13px" }}>Loading entries…</td></tr>
-                  : recentEntries.length === 0
-                    ? <tr><td colSpan={6} style={{ padding: "32px", textAlign: "center", color: "rgba(255,255,255,0.25)", fontSize: "13px" }}>No time entries yet.</td></tr>
-                    : recentEntries.map((entry, i) => (
-                      <tr
-                        key={entry.id}
-                        style={{ borderBottom: i < recentEntries.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", transition: "background 0.15s ease" }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(141,198,63,0.04)")}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                      >
-                        <td style={{ padding: "13px 20px" }}>
-                          <p style={{ fontSize: "13px", fontWeight: 600, color: "#fff", margin: 0 }}>{entry.matter}</p>
-                          <p style={{ fontSize: "10px", color: "rgba(141,198,63,0.6)", margin: "2px 0 0" }}>{entry.ref}</p>
-                        </td>
-                        <td style={{ padding: "13px 20px", maxWidth: "180px" }}>
-                          <p style={{ fontSize: "12px", color: "rgba(255,255,255,0.6)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.task}</p>
-                        </td>
-                        <td style={{ padding: "13px 20px" }}>
-                          <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.5)", background: "rgba(255,255,255,0.06)", padding: "3px 8px", borderRadius: "4px" }}>
-                            {entry.attorney.split(" ").map((w, i) => i === 0 ? w[0] + "." : w).join(" ")}
-                          </span>
-                        </td>
-                        <td style={{ padding: "13px 20px" }}>
-                          <p style={{ fontSize: "12px", color: "rgba(255,255,255,0.4)", margin: 0 }}>{entry.date}</p>
-                        </td>
-                        <td style={{ padding: "13px 20px" }}>
-                          <p style={{ fontSize: "12px", color: "rgba(255,255,255,0.4)", margin: 0 }}>{entry.units} u</p>
-                        </td>
-                        <td style={{ padding: "13px 20px" }}>
-                          <p style={{ fontSize: "13px", fontWeight: 600, color: "#8DC63F", margin: 0 }}>{fmtR(entry.billed)}</p>
-                        </td>
-                      </tr>
-                    ))
-                }
+                {loading ? (
+                  <tr><td colSpan={6} className="px-5 py-8 text-center text-[13px] text-white/25">Loading entries…</td></tr>
+                ) : recentEntries.length === 0 ? (
+                  <tr><td colSpan={6} className="px-5 py-8 text-center text-[13px] text-white/25">No time entries yet.</td></tr>
+                ) : recentEntries.map((entry, i) => (
+                  <tr
+                    key={entry.id}
+                    className={`transition-colors duration-150 hover:bg-[#8DC63F]/[0.04] ${i < recentEntries.length - 1 ? "border-b border-white/[0.04]" : ""}`}
+                  >
+                    <td className="px-5 py-3">
+                      <p className="m-0 text-[13px] font-semibold">{entry.matter}</p>
+                      <p className="m-0 mt-0.5 text-[10px] text-[#8DC63F]/60">{entry.ref}</p>
+                    </td>
+                    <td className="max-w-[180px] px-5 py-3">
+                      <p className="m-0 overflow-hidden text-ellipsis whitespace-nowrap text-xs text-white/60">{entry.task}</p>
+                    </td>
+                    <td className="px-5 py-3">
+                      <span className="rounded bg-white/[0.06] px-2 py-0.5 text-[11px] text-white/50">
+                        {entry.attorney.split(" ").map((w, i) => i === 0 ? w[0] + "." : w).join(" ")}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3">
+                      <p className="m-0 text-xs text-white/40">{entry.date}</p>
+                    </td>
+                    <td className="px-5 py-3">
+                      <p className="m-0 text-xs text-white/40">{entry.units} u</p>
+                    </td>
+                    <td className="px-5 py-3">
+                      <p className="m-0 text-[13px] font-semibold text-[#8DC63F]">{fmtR(entry.billed)}</p>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
 
-          {/* Attorney Productivity Bar Chart */}
-          <div style={{ ...fadeIn(200), ...card, padding: "20px" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
+          {/* Attorney Productivity */}
+          <div className={`rounded-xl border border-[#8DC63F]/[0.12] bg-[#0D1426] p-5 transition-all delay-200 duration-500 ${show}`}>
+            <div className="mb-5 flex items-center justify-between">
               <div>
-                <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#fff", margin: 0 }}>Attorney Productivity</h3>
-                <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)", margin: "2px 0 0" }}>Hours billed per attorney — all time</p>
+                <h3 className="m-0 text-sm font-bold">Attorney Productivity</h3>
+                <p className="m-0 mt-0.5 text-[11px] text-white/35">Hours billed per attorney — all time</p>
               </div>
-              <TrendingUp style={{ width: "16px", height: "16px", color: "rgba(141,198,63,0.4)" }} />
+              <TrendingUp className="h-4 w-4 text-[#8DC63F]/40" />
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div className="flex flex-col gap-3">
               {barData.map((att, i) => {
                 const pct = (att.hours / maxHours) * 100;
                 return (
                   <div key={att.name}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "5px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <div style={{
-                          width: "26px", height: "26px", borderRadius: "50%",
-                          background: `hsl(${85 + i * 15}, 60%, 45%)`,
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          fontSize: "9px", fontWeight: 700, color: "#fff",
-                        }}>
+                    <div className="mb-1.5 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="flex h-6 w-6 items-center justify-center rounded-full text-[9px] font-bold text-white"
+                          style={{ background: `hsl(${AVATAR_HUES[i] ?? 85}, 60%, 45%)` }}
+                        >
                           {att.name.split(".")[1]?.[1]?.toUpperCase() || att.name[0]}
                         </div>
-                        <span style={{ fontSize: "12px", fontWeight: 600, color: "#fff" }}>{att.name}</span>
+                        <span className="text-xs font-semibold">{att.name}</span>
                       </div>
-                      <div style={{ textAlign: "right" }}>
-                        <span style={{ fontSize: "12px", fontWeight: 700, color: "#8DC63F" }}>{att.hours} hrs</span>
-                        <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.3)", marginLeft: "8px" }}>{fmtR(att.billed)}</span>
+                      <div className="text-right">
+                        <span className="text-xs font-bold text-[#8DC63F]">{att.hours} hrs</span>
+                        <span className="ml-2 text-[10px] text-white/30">{fmtR(att.billed)}</span>
                       </div>
                     </div>
-                    <div style={{ height: "6px", background: "rgba(255,255,255,0.06)", borderRadius: "4px", overflow: "hidden" }}>
-                      <div style={{
-                        height: "100%",
-                        width: visible ? `${pct}%` : "0%",
-                        background: `linear-gradient(90deg, #8DC63F, hsl(${85 + i * 12}, 60%, 50%))`,
-                        borderRadius: "4px",
-                        transition: `width 1s ease ${200 + i * 80}ms`,
-                      }} />
+                    <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+                      <div
+                        className="h-full rounded-full transition-all duration-1000"
+                        style={{
+                          width: visible ? `${pct}%` : "0%",
+                          background: `linear-gradient(90deg, #8DC63F, hsl(${AVATAR_HUES[i] ?? 85}, 60%, 50%))`,
+                          transitionDelay: `${200 + i * 80}ms`,
+                        }}
+                      />
                     </div>
                   </div>
                 );
@@ -527,155 +394,158 @@ export function Dashboard({ role = "manager" }) {
           </div>
 
           {/* Active Matters */}
-          <div style={{ ...fadeIn(250), ...card, padding: "20px" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "18px" }}>
+          <div className={`rounded-xl border border-[#8DC63F]/[0.12] bg-[#0D1426] p-5 transition-all delay-[250ms] duration-500 ${show}`}>
+            <div className="mb-4 flex items-center justify-between">
               <div>
-                <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#fff", margin: 0 }}>Active Matters</h3>
-                <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)", margin: "2px 0 0" }}>Hours logged vs estimated budget</p>
+                <h3 className="m-0 text-sm font-bold">Active Matters</h3>
+                <p className="m-0 mt-0.5 text-[11px] text-white/35">Hours logged vs estimated budget</p>
               </div>
               <button
                 onClick={() => navigate("/matters")}
-                style={{ fontSize: "11px", color: "#8DC63F", background: "rgba(141,198,63,0.1)", border: "1px solid rgba(141,198,63,0.25)", borderRadius: "6px", padding: "5px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}
+                className="flex cursor-pointer items-center gap-1 rounded-md border border-[#8DC63F]/25 bg-[#8DC63F]/10 px-3 py-1.5 text-[11px] text-[#8DC63F] transition-colors hover:bg-[#8DC63F]/20"
               >
-                View All <ChevronRight style={{ width: "12px", height: "12px" }} />
+                View All <ChevronRight className="h-3 w-3" />
               </button>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-              {loading
-                ? <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.25)", textAlign: "center", padding: "16px 0" }}>Loading matters…</p>
-                : activeMattersList.length === 0
-                  ? <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.25)", textAlign: "center", padding: "16px 0" }}>No active matters.</p>
-                  : activeMattersList.map((m) => {
-                    const pct = Math.min(m.budget > 0 ? (m.hours / m.budget) * 100 : 0, 100);
-                    const warn = pct >= 90;
-                    return (
-                      <div key={m.id}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                            <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: "#8DC63F", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: 700, color: "#0A0F1E" }}>
-                              {m.initial}
-                            </div>
-                            <div>
-                              <p style={{ fontSize: "13px", fontWeight: 600, color: "#fff", margin: 0 }}>{m.name}</p>
-                              <p style={{ fontSize: "10px", color: "rgba(141,198,63,0.5)", margin: 0 }}>{m.ref}</p>
-                            </div>
-                          </div>
-                          <div style={{ textAlign: "right" }}>
-                            <p style={{ fontSize: "12px", fontWeight: 600, color: warn ? "#f59e0b" : "#8DC63F", margin: 0 }}>{m.hours} / {m.budget} hrs</p>
-                            <p style={{ fontSize: "10px", color: "rgba(255,255,255,0.3)", margin: 0 }}>{Math.round(pct)}% used</p>
-                          </div>
+            <div className="flex flex-col gap-4">
+              {loading ? (
+                <p className="py-4 text-center text-[13px] text-white/25">Loading matters…</p>
+              ) : activeMattersList.length === 0 ? (
+                <p className="py-4 text-center text-[13px] text-white/25">No active matters.</p>
+              ) : activeMattersList.map((m) => {
+                const pct  = Math.min(m.budget > 0 ? (m.hours / m.budget) * 100 : 0, 100);
+                const warn = pct >= 90;
+                return (
+                  <div key={m.id}>
+                    <div className="mb-1.5 flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#8DC63F] text-[10px] font-bold text-[#0A0F1E]">
+                          {m.initial}
                         </div>
-                        <div style={{ height: "4px", background: "rgba(255,255,255,0.06)", borderRadius: "4px", overflow: "hidden" }}>
-                          <div style={{ height: "100%", width: `${pct}%`, background: warn ? "linear-gradient(90deg, #f59e0b, #ef4444)" : "linear-gradient(90deg, #8DC63F, #6aaa1f)", borderRadius: "4px", transition: "width 1s ease" }} />
+                        <div>
+                          <p className="m-0 text-[13px] font-semibold">{m.name}</p>
+                          <p className="m-0 text-[10px] text-[#8DC63F]/50">{m.ref}</p>
                         </div>
                       </div>
-                    );
-                  })
-              }
-            </div>
-          </div>
-
-        </div>
-
-        {/* RIGHT COLUMN */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-
-          {/* Monthly Billing donut */}
-          <div style={{ ...fadeIn(200), ...card, padding: "20px" }}>
-            <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#fff", margin: "0 0 16px" }}>Monthly Billing</h3>
-            <div style={{ display: "flex", justifyContent: "center", marginBottom: "16px" }}>
-              <div style={{ position: "relative", width: "120px", height: "120px" }}>
-                <svg viewBox="0 0 120 120" style={{ width: "120px", height: "120px", transform: "rotate(-90deg)" }}>
-                  <circle cx="60" cy="60" r="48" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="10" />
-                  <circle
-                    cx="60" cy="60" r="48"
-                    fill="none"
-                    stroke="#8DC63F"
-                    strokeWidth="10"
-                    strokeDasharray={`${2 * Math.PI * 48 * (billedPct / 100)} ${2 * Math.PI * 48}`}
-                    strokeLinecap="round"
-                    style={{ transition: "stroke-dasharray 1s ease" }}
-                  />
-                </svg>
-                <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                  <span style={{ fontSize: "20px", fontWeight: 700, color: "#8DC63F" }}>{billedPct}%</span>
-                  <span style={{ fontSize: "9px", color: "rgba(255,255,255,0.35)", letterSpacing: "1px" }}>COLLECTED</span>
-                </div>
-              </div>
-            </div>
-            {[
-              { label: "Collected",    value: fmtR(paidAmount),    color: "#8DC63F" },
-              { label: "Outstanding",  value: fmtR(pendingAmount), color: "#f59e0b" },
-              { label: "Total Billed", value: fmtR(totalBilledInv),color: "rgba(255,255,255,0.2)" },
-            ].map((row) => (
-              <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: row.color }} />
-                  <span style={{ fontSize: "12px", color: "rgba(255,255,255,0.5)" }}>{row.label}</span>
-                </div>
-                <span style={{ fontSize: "13px", fontWeight: 600, color: "#fff" }}>{row.value}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Attorney roster */}
-          <div style={{ ...fadeIn(250), ...card, padding: "20px" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
-              <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#fff", margin: 0 }}>Attorneys</h3>
-              <Users style={{ width: "14px", height: "14px", color: "rgba(141,198,63,0.4)" }} />
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              {(attorneys.length > 0 ? attorneys : SEED_ATTORNEYS).slice(0, 6).map((att, i) => {
-                const name   = att.Name ?? att.name ?? "—";
-                const email  = att.Email ?? att.email ?? "";
-                const rate   = att.HourlyRate ?? att.hourlyRate ?? 0;
-                const initials = name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
-                return (
-                  <div key={att.Id ?? att.id ?? i} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px", borderRadius: "8px", transition: "background 0.15s ease", cursor: "default" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(141,198,63,0.05)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                  >
-                    <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: `hsl(${85 + i * 18}, 55%, 42%)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: 700, color: "#fff", flexShrink: 0 }}>
-                      {initials}
+                      <div className="text-right">
+                        <p className={`m-0 text-xs font-semibold ${warn ? "text-amber-400" : "text-[#8DC63F]"}`}>
+                          {m.hours} / {m.budget} hrs
+                        </p>
+                        <p className="m-0 text-[10px] text-white/30">{Math.round(pct)}% used</p>
+                      </div>
                     </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: "12px", fontWeight: 600, color: "#fff", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</p>
-                      {rate > 0 && <p style={{ fontSize: "10px", color: "rgba(141,198,63,0.5)", margin: 0 }}>{fmtR(rate)}/hr</p>}
+                    <div className="h-1 overflow-hidden rounded-full bg-white/[0.06]">
+                      <div
+                        className="h-full rounded-full transition-all duration-1000"
+                        style={{ width: `${pct}%`, background: warn ? "linear-gradient(90deg,#f59e0b,#ef4444)" : "linear-gradient(90deg,#8DC63F,#6aaa1f)" }}
+                      />
                     </div>
-                    <div style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#8DC63F", flexShrink: 0 }} />
                   </div>
                 );
               })}
             </div>
           </div>
 
-          {/* Auto Activity Feed */}
-          <div style={{ ...fadeIn(300), ...card, padding: "20px", flex: 1 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "14px" }}>
-              <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#fff", margin: 0 }}>Live Activity</h3>
-              <span style={{ fontSize: "9px", fontWeight: 700, color: "#8DC63F", background: "rgba(141,198,63,0.1)", border: "1px solid rgba(141,198,63,0.3)", padding: "2px 7px", borderRadius: "20px", letterSpacing: "1px" }}>AUTO</span>
-              {/* Pulsing dot */}
-              <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#8DC63F", display: "inline-block", animation: "pulse 2s ease-in-out infinite", marginLeft: "auto" }} />
-              <style>{`@keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.85); } }`}</style>
+        </div>
+
+        {/* RIGHT COLUMN */}
+        <div className="flex flex-col gap-5">
+
+          {/* Monthly Billing donut */}
+          <div className={`rounded-xl border border-[#8DC63F]/[0.12] bg-[#0D1426] p-5 transition-all delay-200 duration-500 ${show}`}>
+            <h3 className="m-0 mb-4 text-sm font-bold">Monthly Billing</h3>
+            <div className="mb-4 flex justify-center">
+              <div className="relative h-[120px] w-[120px]">
+                <svg viewBox="0 0 120 120" className="-rotate-90" width="120" height="120">
+                  <circle cx="60" cy="60" r="48" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="10" />
+                  <circle
+                    cx="60" cy="60" r="48" fill="none" stroke="#8DC63F"
+                    strokeWidth="10" strokeLinecap="round"
+                    strokeDasharray={`${2 * Math.PI * 48 * (billedPct / 100)} ${2 * Math.PI * 48}`}
+                    style={{ transition: "stroke-dasharray 1s ease" }}
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-xl font-bold text-[#8DC63F]">{billedPct}%</span>
+                  <span className="text-[9px] uppercase tracking-widest text-white/35">Collected</span>
+                </div>
+              </div>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+            {[
+              { label: "Collected",    value: fmtR(paidAmount),     dot: "bg-[#8DC63F]" },
+              { label: "Outstanding",  value: fmtR(pendingAmount),  dot: "bg-amber-400" },
+              { label: "Total Billed", value: fmtR(totalBilledInv), dot: "bg-white/20"  },
+            ].map((row) => (
+              <div key={row.label} className="flex items-center justify-between border-b border-white/5 py-2">
+                <div className="flex items-center gap-2">
+                  <div className={`h-2 w-2 rounded-full ${row.dot}`} />
+                  <span className="text-xs text-white/50">{row.label}</span>
+                </div>
+                <span className="text-[13px] font-semibold">{row.value}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Attorney roster */}
+          <div className={`rounded-xl border border-[#8DC63F]/[0.12] bg-[#0D1426] p-5 transition-all delay-[250ms] duration-500 ${show}`}>
+            <div className="mb-3.5 flex items-center justify-between">
+              <h3 className="m-0 text-sm font-bold">Attorneys</h3>
+              <Users className="h-3.5 w-3.5 text-[#8DC63F]/40" />
+            </div>
+            <div className="flex flex-col gap-1">
+              {(attorneys.length > 0 ? attorneys : SEED_ATTORNEYS).slice(0, 6).map((att, i) => {
+                const name     = att.Name ?? att.name ?? "—";
+                const rate     = att.HourlyRate ?? att.hourlyRate ?? 0;
+                const initials = name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+                return (
+                  <div
+                    key={att.Id ?? att.id ?? i}
+                    className="flex cursor-default items-center gap-2.5 rounded-lg px-2 py-2 transition-colors hover:bg-[#8DC63F]/[0.05]"
+                  >
+                    <div
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
+                      style={{ background: `hsl(${AVATAR_HUES[i] ?? 85}, 55%, 42%)` }}
+                    >
+                      {initials}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="m-0 overflow-hidden text-ellipsis whitespace-nowrap text-xs font-semibold">{name}</p>
+                      {rate > 0 && <p className="m-0 text-[10px] text-[#8DC63F]/50">{fmtR(rate)}/hr</p>}
+                    </div>
+                    <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#8DC63F]" />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Live Activity Feed */}
+          <div className={`flex-1 rounded-xl border border-[#8DC63F]/[0.12] bg-[#0D1426] p-5 transition-all delay-300 duration-500 ${show}`}>
+            <div className="mb-3.5 flex items-center gap-2">
+              <h3 className="m-0 text-sm font-bold">Live Activity</h3>
+              <span className="rounded-full border border-[#8DC63F]/30 bg-[#8DC63F]/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-[#8DC63F]">
+                AUTO
+              </span>
+              <span className="ml-auto h-1.5 w-1.5 animate-pulse rounded-full bg-[#8DC63F]" />
+            </div>
+            <div className="flex flex-col gap-0.5">
               {LIVE_EVENTS.map((item) => (
                 <div
                   key={item.id}
-                  style={{ display: "flex", gap: "10px", padding: "9px 8px", borderRadius: "6px", transition: "background 0.15s ease", cursor: "default" }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(141,198,63,0.05)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  className="flex cursor-default gap-2.5 rounded-md px-2 py-2.5 transition-colors hover:bg-[#8DC63F]/[0.05]"
                 >
-                  <div style={{ width: "28px", height: "28px", borderRadius: "6px", background: "rgba(141,198,63,0.1)", border: "1px solid rgba(141,198,63,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", flexShrink: 0 }}>
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-[#8DC63F]/20 bg-[#8DC63F]/10 text-xs">
                     {activityIcon(item.type)}
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.65)", margin: 0, lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.desc}</p>
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "2px" }}>
-                      <span style={{ fontSize: "10px", color: "#8DC63F", fontWeight: 600 }}>{item.attorney.split(" ")[0]}</span>
-                      <span style={{ fontSize: "9px", color: "rgba(255,255,255,0.2)" }}>·</span>
-                      <span style={{ fontSize: "9px", color: "rgba(255,255,255,0.25)" }}>{item.time} min ago</span>
-                      <span style={{ fontSize: "9px", color: "#8DC63F", background: "rgba(141,198,63,0.08)", padding: "1px 5px", borderRadius: "3px", marginLeft: "2px" }}>auto</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="m-0 overflow-hidden text-ellipsis whitespace-nowrap text-[11px] leading-snug text-white/65">
+                      {item.desc}
+                    </p>
+                    <div className="mt-0.5 flex items-center gap-1.5">
+                      <span className="text-[10px] font-semibold text-[#8DC63F]">{item.attorney.split(" ")[0]}</span>
+                      <span className="text-[9px] text-white/20">·</span>
+                      <span className="text-[9px] text-white/25">{item.time} min ago</span>
+                      <span className="ml-0.5 rounded bg-[#8DC63F]/[0.08] px-1 py-px text-[9px] text-[#8DC63F]">auto</span>
                     </div>
                   </div>
                 </div>

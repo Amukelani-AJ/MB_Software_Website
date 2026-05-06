@@ -1,15 +1,13 @@
 import { useState, useEffect } from "react";
-import {
-  Plus, Search, X, ChevronDown, Edit2, Trash2, Mail, Loader,
-} from "lucide-react";
+import { Plus, Search, X, Edit2, Trash2, Mail, Loader } from "lucide-react";
 
 const BASE_URL = "https://localhost:7291/api";
 
 const attorneyApi = {
-  getAll:    ()         => fetch(`${BASE_URL}/Attorney`),
-  create:    (data)     => fetch(`${BASE_URL}/Attorney`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }),
-  update:    (id, data) => fetch(`${BASE_URL}/Attorney/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }),
-  delete:    (id)       => fetch(`${BASE_URL}/Attorney/${id}`, { method: "DELETE" }),
+  getAll: ()         => fetch(`${BASE_URL}/Attorney`),
+  create: (data)     => fetch(`${BASE_URL}/Attorney`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }),
+  update: (id, data) => fetch(`${BASE_URL}/Attorney/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }),
+  delete: (id)       => fetch(`${BASE_URL}/Attorney/${id}`, { method: "DELETE" }),
 };
 
 function getInitials(name = "") {
@@ -17,45 +15,35 @@ function getInitials(name = "") {
 }
 function fmtR(n) { return "R " + Number(n).toLocaleString(); }
 
-// ── inputStyle and Field defined at MODULE level — never recreated on render ──
-const inputStyle = {
-  width: "100%",
-  background: "#080D1A",
-  border: "1px solid rgba(141,198,63,0.22)",
-  borderRadius: "7px",
-  color: "#fff",
-  fontSize: "13px",
-  padding: "10px 12px",
-  outline: "none",
-  fontFamily: "'Inter', sans-serif",
-  boxSizing: "border-box",
-};
-
+// ── Field — at module scope so it's never recreated ──────────────────────────
 function Field({ label, required, children }) {
   return (
     <div>
-      <label style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", letterSpacing: "1px", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>
-        {label} {required && <span style={{ color: "#8DC63F" }}>*</span>}
+      <label className="mb-1.5 block text-[11px] uppercase tracking-widest text-white/40">
+        {label} {required && <span className="text-[#8DC63F]">*</span>}
       </label>
       {children}
     </div>
   );
 }
 
+const inputCls = "w-full rounded-lg border border-[#8DC63F]/22 bg-[#080D1A] px-3 py-2.5 text-[13px] text-white outline-none placeholder:text-white/20 focus:border-[#8DC63F]/50";
+
 // ── Toast ─────────────────────────────────────────────────────────────────────
 function Toast({ message, type, onClose }) {
   useEffect(() => { const t = setTimeout(onClose, 3000); return () => clearTimeout(t); }, []);
-  const c = type === "success" ? "#8DC63F" : "#ef4444";
+  const border = type === "success" ? "border-l-[#8DC63F] border-[#8DC63F]/25" : "border-l-red-500 border-red-500/25";
   return (
-    <div style={{ position: "fixed", bottom: "24px", right: "24px", zIndex: 200, background: "#0D1426", border: `1px solid ${c}40`, borderLeft: `3px solid ${c}`, borderRadius: "8px", padding: "12px 16px", display: "flex", alignItems: "center", gap: "10px", boxShadow: "0 8px 32px rgba(0,0,0,0.4)", fontFamily: "'Inter', sans-serif" }}>
-      <span style={{ fontSize: "13px", color: "#fff" }}>{message}</span>
-      <button onClick={onClose} style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.3)", cursor: "pointer" }}><X style={{ width: "14px", height: "14px" }} /></button>
+    <div className={`fixed bottom-6 right-6 z-[200] flex items-center gap-2.5 rounded-lg border border-l-[3px] bg-[#0D1426] px-4 py-3 shadow-2xl ${border}`}>
+      <span className="text-[13px] text-white">{message}</span>
+      <button onClick={onClose} className="cursor-pointer border-none bg-transparent text-white/30">
+        <X className="h-3.5 w-3.5" />
+      </button>
     </div>
   );
 }
 
 // ── Attorney Form Modal ───────────────────────────────────────────────────────
-// Field is at module scope — inputs will NOT lose focus on re-render
 function AttorneyModal({ attorney, onSave, onClose, saving }) {
   const isEdit = !!attorney;
   const [form, setForm] = useState({
@@ -63,64 +51,67 @@ function AttorneyModal({ attorney, onSave, onClose, saving }) {
     email:      attorney?.email      || "",
     hourlyRate: attorney?.hourlyRate || "",
   });
-
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
+  const canSave = !saving && form.name && form.email && form.hourlyRate;
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }} onClick={onClose}>
-      <div style={{ background: "#0D1426", border: "1px solid rgba(141,198,63,0.25)", borderRadius: "12px", width: "460px", maxWidth: "100%", fontFamily: "'Inter', sans-serif" }} onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-5" onClick={onClose}>
+      <div className="w-[460px] max-w-full rounded-xl border border-[#8DC63F]/25 bg-[#0D1426]" onClick={(e) => e.stopPropagation()}>
 
         {/* Header */}
-        <div style={{ padding: "20px 24px", borderBottom: "1px solid rgba(141,198,63,0.12)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div className="flex items-center justify-between border-b border-[#8DC63F]/12 px-6 py-5">
           <div>
-            <h3 style={{ fontSize: "16px", fontWeight: 700, color: "#fff", margin: 0 }}>{isEdit ? "Edit Attorney" : "New Attorney"}</h3>
-            <p style={{ fontSize: "12px", color: "rgba(255,255,255,0.35)", margin: "3px 0 0" }}>{isEdit ? `Editing ${attorney.name}` : "Add a new attorney to the system"}</p>
+            <h3 className="m-0 text-base font-bold text-white">{isEdit ? "Edit Attorney" : "New Attorney"}</h3>
+            <p className="m-0 mt-0.5 text-xs text-white/35">
+              {isEdit ? `Editing ${attorney.name}` : "Add a new attorney to the system"}
+            </p>
           </div>
-          <button onClick={onClose} style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.35)", cursor: "pointer" }}>
-            <X style={{ width: "18px", height: "18px" }} />
+          <button onClick={onClose} className="cursor-pointer border-none bg-transparent text-white/35">
+            <X className="h-[18px] w-[18px]" />
           </button>
         </div>
 
         {/* Body */}
-        <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "14px" }}>
+        <div className="flex flex-col gap-3.5 p-6">
           <Field label="Full Name" required>
             <input
+              className={inputCls}
               value={form.name}
               onChange={(e) => set("name", e.target.value)}
               placeholder="e.g. Amukelani Ndlovu"
-              style={inputStyle}
             />
           </Field>
-
           <Field label="Email Address" required>
             <input
+              className={inputCls}
               value={form.email}
               onChange={(e) => set("email", e.target.value)}
               placeholder="a.name@mb.co.za"
-              style={inputStyle}
             />
           </Field>
-
           <Field label="Hourly Rate (R)" required>
             <input
+              className={inputCls}
               type="number"
               value={form.hourlyRate}
               onChange={(e) => set("hourlyRate", e.target.value)}
               placeholder="e.g. 2200"
-              style={inputStyle}
             />
           </Field>
 
-          <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
+          <div className="mt-1 flex gap-2.5">
             <button
               onClick={() => onSave(form)}
-              disabled={saving || !form.name || !form.email || !form.hourlyRate}
-              style={{ flex: 1, fontSize: "13px", fontWeight: 700, color: "#0A0F1E", background: saving ? "rgba(141,198,63,0.5)" : "#8DC63F", border: "none", borderRadius: "7px", padding: "12px", cursor: saving ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
+              disabled={!canSave}
+              className={`flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border-none py-3 text-[13px] font-bold text-[#0A0F1E] transition-opacity ${canSave ? "bg-[#8DC63F]" : "cursor-not-allowed bg-[#8DC63F]/50"}`}
             >
-              {saving && <Loader style={{ width: "14px", height: "14px", animation: "spin 1s linear infinite" }} />}
+              {saving && <Loader className="h-3.5 w-3.5 animate-spin" />}
               {isEdit ? "Save Changes" : "Add Attorney"}
             </button>
-            <button onClick={onClose} style={{ fontSize: "13px", color: "rgba(255,255,255,0.5)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "7px", padding: "12px 20px", cursor: "pointer" }}>
+            <button
+              onClick={onClose}
+              className="cursor-pointer rounded-lg border border-white/10 bg-white/5 px-5 py-3 text-[13px] text-white/50 transition-colors hover:bg-white/10"
+            >
               Cancel
             </button>
           </div>
@@ -134,38 +125,49 @@ function AttorneyModal({ attorney, onSave, onClose, saving }) {
 function DetailModal({ attorney, onEdit, onClose }) {
   if (!attorney) return null;
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }} onClick={onClose}>
-      <div style={{ background: "#0D1426", border: "1px solid rgba(141,198,63,0.25)", borderRadius: "12px", width: "440px", maxWidth: "100%", fontFamily: "'Inter', sans-serif", overflow: "hidden" }} onClick={(e) => e.stopPropagation()}>
-        <div style={{ background: "#080D1A", padding: "28px", borderBottom: "1px solid rgba(141,198,63,0.12)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-              <div style={{ width: "52px", height: "52px", borderRadius: "50%", background: "#8DC63F", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", fontWeight: 800, color: "#0A0F1E" }}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-5" onClick={onClose}>
+      <div className="w-[440px] max-w-full overflow-hidden rounded-xl border border-[#8DC63F]/25 bg-[#0D1426]" onClick={(e) => e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="border-b border-[#8DC63F]/12 bg-[#080D1A] p-7">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full bg-[#8DC63F] text-lg font-extrabold text-[#0A0F1E]">
                 {getInitials(attorney.name)}
               </div>
               <div>
-                <h3 style={{ fontSize: "18px", fontWeight: 700, color: "#fff", margin: 0 }}>{attorney.name}</h3>
-                <p style={{ fontSize: "12px", color: "#8DC63F", margin: "4px 0 0" }}>Attorney</p>
+                <h3 className="m-0 text-lg font-bold text-white">{attorney.name}</h3>
+                <p className="m-0 mt-1 text-xs text-[#8DC63F]">Attorney</p>
               </div>
             </div>
-            <div style={{ display: "flex", gap: "8px" }}>
-              <button onClick={() => onEdit(attorney)} style={{ fontSize: "12px", color: "#8DC63F", background: "rgba(141,198,63,0.1)", border: "1px solid rgba(141,198,63,0.25)", borderRadius: "6px", padding: "7px 14px", cursor: "pointer" }}>Edit</button>
-              <button onClick={onClose} style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.3)", cursor: "pointer" }}><X style={{ width: "18px", height: "18px" }} /></button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => onEdit(attorney)}
+                className="cursor-pointer rounded-md border border-[#8DC63F]/25 bg-[#8DC63F]/10 px-3.5 py-1.5 text-xs text-[#8DC63F] transition-colors hover:bg-[#8DC63F]/20"
+              >
+                Edit
+              </button>
+              <button onClick={onClose} className="cursor-pointer border-none bg-transparent text-white/30">
+                <X className="h-[18px] w-[18px]" />
+              </button>
             </div>
           </div>
         </div>
-        <div style={{ padding: "24px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "20px" }}>
-            <Mail style={{ width: "14px", height: "14px", color: "rgba(141,198,63,0.5)" }} />
-            <span style={{ fontSize: "13px", color: "rgba(255,255,255,0.6)" }}>{attorney.email}</span>
+
+        {/* Body */}
+        <div className="p-6">
+          <div className="mb-5 flex items-center gap-2.5">
+            <Mail className="h-3.5 w-3.5 text-[#8DC63F]/50" />
+            <span className="text-[13px] text-white/60">{attorney.email}</span>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-            <div style={{ background: "rgba(141,198,63,0.07)", border: "1px solid rgba(141,198,63,0.2)", borderRadius: "8px", padding: "14px" }}>
-              <p style={{ fontSize: "10px", color: "rgba(141,198,63,0.6)", letterSpacing: "1px", textTransform: "uppercase", margin: "0 0 4px" }}>Hourly Rate</p>
-              <p style={{ fontSize: "20px", fontWeight: 700, color: "#8DC63F", margin: 0 }}>{fmtR(attorney.hourlyRate)}</p>
+          <div className="grid grid-cols-2 gap-2.5">
+            <div className="rounded-lg border border-[#8DC63F]/20 bg-[#8DC63F]/[0.07] p-3.5">
+              <p className="m-0 mb-1 text-[10px] uppercase tracking-widest text-[#8DC63F]/60">Hourly Rate</p>
+              <p className="m-0 text-xl font-bold text-[#8DC63F]">{fmtR(attorney.hourlyRate)}</p>
             </div>
-            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "8px", padding: "14px" }}>
-              <p style={{ fontSize: "10px", color: "rgba(255,255,255,0.3)", letterSpacing: "1px", textTransform: "uppercase", margin: "0 0 4px" }}>Attorney ID</p>
-              <p style={{ fontSize: "20px", fontWeight: 700, color: "#fff", margin: 0 }}>#{attorney.id}</p>
+            <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] p-3.5">
+              <p className="m-0 mb-1 text-[10px] uppercase tracking-widest text-white/30">Attorney ID</p>
+              <p className="m-0 text-xl font-bold text-white">#{attorney.id}</p>
             </div>
           </div>
         </div>
@@ -177,33 +179,40 @@ function DetailModal({ attorney, onEdit, onClose }) {
 // ── Attorney Card ─────────────────────────────────────────────────────────────
 function AttorneyCard({ attorney, onView, onEdit, onDelete }) {
   return (
-    <div onClick={() => onView(attorney)}
-      style={{ background: "#0D1426", border: "1px solid rgba(141,198,63,0.12)", borderRadius: "10px", padding: "20px", cursor: "pointer", transition: "border-color 0.2s, transform 0.2s", position: "relative", overflow: "hidden" }}
-      onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(141,198,63,0.4)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
-      onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(141,198,63,0.12)"; e.currentTarget.style.transform = "translateY(0)"; }}
+    <div
+      onClick={() => onView(attorney)}
+      className="group relative cursor-pointer overflow-hidden rounded-xl border border-[#8DC63F]/[0.12] bg-[#0D1426] p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-[#8DC63F]/40"
     >
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "3px", background: "#8DC63F", opacity: 0.6 }} />
-      <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
-        <div style={{ width: "44px", height: "44px", borderRadius: "50%", background: "#8DC63F", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "15px", fontWeight: 800, color: "#0A0F1E", flexShrink: 0 }}>
+      {/* Top accent bar */}
+      <div className="absolute left-0 right-0 top-0 h-[3px] bg-[#8DC63F] opacity-60" />
+
+      <div className="mb-4 flex items-center gap-3">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#8DC63F] text-[15px] font-extrabold text-[#0A0F1E]">
           {getInitials(attorney.name)}
         </div>
         <div>
-          <p style={{ fontSize: "14px", fontWeight: 700, color: "#fff", margin: 0 }}>{attorney.name}</p>
-          <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", margin: "2px 0 0" }}>{attorney.email}</p>
+          <p className="m-0 text-sm font-bold text-white">{attorney.name}</p>
+          <p className="m-0 mt-0.5 text-[11px] text-white/40">{attorney.email}</p>
         </div>
       </div>
-      <div style={{ background: "rgba(141,198,63,0.07)", border: "1px solid rgba(141,198,63,0.15)", borderRadius: "7px", padding: "10px 14px", marginBottom: "14px" }}>
-        <p style={{ fontSize: "10px", color: "rgba(141,198,63,0.6)", letterSpacing: "1px", textTransform: "uppercase", margin: "0 0 2px" }}>Hourly Rate</p>
-        <p style={{ fontSize: "18px", fontWeight: 700, color: "#8DC63F", margin: 0 }}>{fmtR(attorney.hourlyRate)}</p>
+
+      <div className="mb-3.5 rounded-lg border border-[#8DC63F]/15 bg-[#8DC63F]/[0.07] px-3.5 py-2.5">
+        <p className="m-0 mb-0.5 text-[10px] uppercase tracking-widest text-[#8DC63F]/60">Hourly Rate</p>
+        <p className="m-0 text-lg font-bold text-[#8DC63F]">{fmtR(attorney.hourlyRate)}</p>
       </div>
-      <div style={{ display: "flex", gap: "8px", borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "14px" }}>
-        <button onClick={(e) => { e.stopPropagation(); onEdit(attorney); }}
-          style={{ flex: 1, fontSize: "11px", color: "#8DC63F", background: "rgba(141,198,63,0.08)", border: "1px solid rgba(141,198,63,0.2)", borderRadius: "6px", padding: "7px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "4px" }}>
-          <Edit2 style={{ width: "11px", height: "11px" }} /> Edit
+
+      <div className="flex gap-2 border-t border-white/5 pt-3.5">
+        <button
+          onClick={(e) => { e.stopPropagation(); onEdit(attorney); }}
+          className="flex flex-1 cursor-pointer items-center justify-center gap-1 rounded-md border border-[#8DC63F]/20 bg-[#8DC63F]/[0.08] py-1.5 text-[11px] text-[#8DC63F] transition-colors hover:bg-[#8DC63F]/20"
+        >
+          <Edit2 className="h-[11px] w-[11px]" /> Edit
         </button>
-        <button onClick={(e) => { e.stopPropagation(); onDelete(attorney.id); }}
-          style={{ fontSize: "11px", color: "#ef4444", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: "6px", padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}>
-          <Trash2 style={{ width: "11px", height: "11px" }} />
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(attorney.id); }}
+          className="flex cursor-pointer items-center gap-1 rounded-md border border-red-500/20 bg-red-500/[0.08] px-3 py-1.5 text-[11px] text-red-400 transition-colors hover:bg-red-500/20"
+        >
+          <Trash2 className="h-[11px] w-[11px]" />
         </button>
       </div>
     </div>
@@ -212,17 +221,17 @@ function AttorneyCard({ attorney, onView, onEdit, onDelete }) {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export function Attorneys() {
-  const [attorneys, setAttorneys] = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState(null);
-  const [search, setSearch]       = useState("");
-  const [viewMode, setViewMode]   = useState("grid");
-  const [showForm, setShowForm]   = useState(false);
-  const [editTarget, setEditTarget] = useState(null);
-  const [viewTarget, setViewTarget] = useState(null);
-  const [saving, setSaving]       = useState(false);
-  const [toast, setToast]         = useState(null);
-  const [visible, setVisible]     = useState(false);
+  const [attorneys,   setAttorneys]   = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [error,       setError]       = useState(null);
+  const [search,      setSearch]      = useState("");
+  const [viewMode,    setViewMode]    = useState("grid");
+  const [showForm,    setShowForm]    = useState(false);
+  const [editTarget,  setEditTarget]  = useState(null);
+  const [viewTarget,  setViewTarget]  = useState(null);
+  const [saving,      setSaving]      = useState(false);
+  const [toast,       setToast]       = useState(null);
+  const [visible,     setVisible]     = useState(false);
 
   useEffect(() => { setTimeout(() => setVisible(true), 50); }, []);
 
@@ -231,8 +240,10 @@ export function Attorneys() {
       setLoading(true); setError(null);
       const res = await attorneyApi.getAll();
       if (!res.ok) throw new Error(`Error ${res.status}`);
-      setAttorneys(await res.json());
-    } catch (err) {
+      const data = await res.json();
+      // ── Newest first: sort by id descending so newly added appear at top ──
+      setAttorneys([...data].sort((a, b) => b.id - a.id));
+    } catch {
       setError("Failed to load attorneys. Make sure your API is running.");
     } finally {
       setLoading(false);
@@ -278,130 +289,162 @@ export function Attorneys() {
     return a.name.toLowerCase().includes(q) || a.email.toLowerCase().includes(q);
   });
 
-  const fadeIn = (d = 0) => ({ opacity: visible ? 1 : 0, transform: visible ? "translateY(0)" : "translateY(12px)", transition: `opacity 0.4s ease ${d}ms, transform 0.4s ease ${d}ms` });
+  const show = visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3";
 
+  // ── Loading ────────────────────────────────────────────────────────────────
   if (loading) return (
-    <div style={{ minHeight: "100%", background: "#080D1A", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: "16px", fontFamily: "'Inter', sans-serif" }}>
-      <Loader style={{ width: "32px", height: "32px", color: "#8DC63F", animation: "spin 1s linear infinite" }} />
-      <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "13px", margin: 0 }}>Loading attorneys...</p>
-      <style>{`@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }`}</style>
+    <div className="flex min-h-full flex-col items-center justify-center gap-4 bg-[#080D1A]">
+      <Loader className="h-8 w-8 animate-spin text-[#8DC63F]" />
+      <p className="m-0 text-[13px] text-white/40">Loading attorneys...</p>
     </div>
   );
 
+  // ── Error ──────────────────────────────────────────────────────────────────
   if (error) return (
-    <div style={{ minHeight: "100%", background: "#080D1A", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: "16px", fontFamily: "'Inter', sans-serif", padding: "40px" }}>
-      <X style={{ width: "32px", height: "32px", color: "#ef4444" }} />
-      <p style={{ color: "#fff", fontSize: "15px", fontWeight: 600, margin: 0 }}>Could not load attorneys</p>
-      <p style={{ color: "rgba(255,255,255,0.35)", fontSize: "13px", margin: 0 }}>{error}</p>
-      <button onClick={fetchAttorneys} style={{ fontSize: "13px", fontWeight: 600, color: "#0A0F1E", background: "#8DC63F", border: "none", borderRadius: "7px", padding: "10px 20px", cursor: "pointer" }}>Retry</button>
+    <div className="flex min-h-full flex-col items-center justify-center gap-4 bg-[#080D1A] px-10">
+      <X className="h-8 w-8 text-red-500" />
+      <p className="m-0 text-[15px] font-semibold text-white">Could not load attorneys</p>
+      <p className="m-0 text-[13px] text-white/35">{error}</p>
+      <button
+        onClick={fetchAttorneys}
+        className="cursor-pointer rounded-lg border-none bg-[#8DC63F] px-5 py-2.5 text-[13px] font-bold text-[#0A0F1E]"
+      >
+        Retry
+      </button>
     </div>
   );
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div style={{ minHeight: "100%", background: "#080D1A", padding: "28px 32px", fontFamily: "'Inter', sans-serif", color: "#fff" }}>
-      <style>{`@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }`}</style>
+    <div className="min-h-full bg-[#080D1A] px-8 py-7 font-sans text-white">
 
       {/* Header */}
-      <div style={{ ...fadeIn(0), display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "24px" }}>
+      <div className={`mb-6 flex items-end justify-between transition-all duration-500 ${show}`}>
         <div>
-          <p style={{ fontSize: "11px", color: "#8DC63F", letterSpacing: "3px", textTransform: "uppercase", margin: 0 }}>Team Management</p>
-          <h2 style={{ fontSize: "24px", fontWeight: 700, margin: "4px 0 0", letterSpacing: "-0.5px" }}>Attorneys</h2>
-          <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.35)", margin: "4px 0 0" }}>Manage attorney profiles and hourly rates</p>
+          <p className="m-0 text-[11px] uppercase tracking-[3px] text-[#8DC63F]">Team Management</p>
+          <h2 className="m-0 mt-1 text-2xl font-bold tracking-tight">Attorneys</h2>
+          <p className="m-0 mt-1 text-[13px] text-white/35">Manage attorney profiles and hourly rates</p>
         </div>
-        <button onClick={() => { setEditTarget(null); setShowForm(true); }}
-          style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", fontWeight: 700, color: "#0A0F1E", background: "#8DC63F", border: "none", borderRadius: "7px", padding: "10px 18px", cursor: "pointer" }}>
-          <Plus style={{ width: "15px", height: "15px" }} /> New Attorney
+        <button
+          onClick={() => { setEditTarget(null); setShowForm(true); }}
+          className="flex cursor-pointer items-center gap-1.5 rounded-lg border-none bg-[#8DC63F] px-[18px] py-2.5 text-[13px] font-bold text-[#0A0F1E] transition-opacity hover:opacity-90"
+        >
+          <Plus className="h-[15px] w-[15px]" /> New Attorney
         </button>
       </div>
 
       {/* Summary cards */}
-      <div style={{ ...fadeIn(80), display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "14px", marginBottom: "20px" }}>
+      <div className={`mb-5 grid grid-cols-3 gap-3.5 transition-all delay-[80ms] duration-500 ${show}`}>
         {[
-          { label: "Total Attorneys", value: attorneys.length, color: "#fff" },
-          { label: "Avg Hourly Rate", value: attorneys.length ? fmtR(Math.round(attorneys.reduce((s, a) => s + Number(a.hourlyRate), 0) / attorneys.length)) : "R 0", color: "#8DC63F" },
-          { label: "Showing", value: `${filtered.length} of ${attorneys.length}`, color: "#60a5fa" },
+          { label: "Total Attorneys", value: attorneys.length,  color: "text-white"      },
+          { label: "Avg Hourly Rate", value: attorneys.length ? fmtR(Math.round(attorneys.reduce((s, a) => s + Number(a.hourlyRate), 0) / attorneys.length)) : "R 0", color: "text-[#8DC63F]" },
+          { label: "Showing",         value: `${filtered.length} of ${attorneys.length}`, color: "text-blue-400" },
         ].map((c) => (
-          <div key={c.label} style={{ background: "#0D1426", border: "1px solid rgba(141,198,63,0.1)", borderRadius: "8px", padding: "16px 18px" }}>
-            <p style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)", letterSpacing: "1.5px", textTransform: "uppercase", margin: 0 }}>{c.label}</p>
-            <p style={{ fontSize: "22px", fontWeight: 700, color: c.color, margin: "6px 0 0" }}>{c.value}</p>
+          <div key={c.label} className="rounded-lg border border-[#8DC63F]/10 bg-[#0D1426] px-[18px] py-4">
+            <p className="m-0 text-[10px] uppercase tracking-[1.5px] text-white/35">{c.label}</p>
+            <p className={`m-0 mt-1.5 text-[22px] font-bold ${c.color}`}>{c.value}</p>
           </div>
         ))}
       </div>
 
       {/* Filters */}
-      <div style={{ ...fadeIn(130), display: "flex", gap: "10px", marginBottom: "20px", alignItems: "center" }}>
-        <div style={{ position: "relative", flex: 1 }}>
-          <Search style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", width: "14px", height: "14px", color: "rgba(255,255,255,0.3)" }} />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name or email..."
-            style={{ width: "100%", background: "#0D1426", border: "1px solid rgba(141,198,63,0.2)", borderRadius: "6px", color: "rgba(255,255,255,0.8)", fontSize: "12px", padding: "8px 12px 8px 32px", outline: "none", boxSizing: "border-box", fontFamily: "'Inter', sans-serif" }} />
+      <div className={`mb-5 flex items-center gap-2.5 transition-all delay-[130ms] duration-500 ${show}`}>
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/30" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search name or email..."
+            className="w-full rounded-md border border-[#8DC63F]/20 bg-[#0D1426] py-2 pl-8 pr-3 text-xs text-white/80 outline-none placeholder:text-white/25"
+          />
         </div>
         {search && (
-          <button onClick={() => setSearch("")} style={{ fontSize: "11px", color: "#ef4444", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: "6px", padding: "8px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}>
-            <X style={{ width: "12px", height: "12px" }} /> Clear
+          <button
+            onClick={() => setSearch("")}
+            className="flex cursor-pointer items-center gap-1 rounded-md border border-red-500/25 bg-red-500/10 px-3 py-2 text-[11px] text-red-400"
+          >
+            <X className="h-3 w-3" /> Clear
           </button>
         )}
-        <div style={{ display: "flex", background: "#0D1426", border: "1px solid rgba(141,198,63,0.2)", borderRadius: "6px", overflow: "hidden", marginLeft: "auto" }}>
+        {/* View toggle */}
+        <div className="ml-auto flex overflow-hidden rounded-md border border-[#8DC63F]/20 bg-[#0D1426]">
           {["grid", "table"].map((v) => (
-            <button key={v} onClick={() => setViewMode(v)}
-              style={{ padding: "8px 14px", fontSize: "12px", border: "none", cursor: "pointer", fontFamily: "'Inter', sans-serif", background: viewMode === v ? "#8DC63F" : "transparent", color: viewMode === v ? "#0A0F1E" : "rgba(255,255,255,0.4)", fontWeight: viewMode === v ? 600 : 400 }}>
+            <button
+              key={v}
+              onClick={() => setViewMode(v)}
+              className={`cursor-pointer border-none px-3.5 py-2 text-xs transition-colors ${viewMode === v ? "bg-[#8DC63F] font-semibold text-[#0A0F1E]" : "bg-transparent text-white/40 hover:text-white/70"}`}
+            >
               {v === "grid" ? "⊞ Grid" : "☰ Table"}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Grid */}
+      {/* Grid view */}
       {viewMode === "grid" && (
-        <div style={{ ...fadeIn(170), display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px,1fr))", gap: "16px" }}>
+        <div className={`grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4 transition-all delay-[170ms] duration-500 ${show}`}>
           {filtered.length === 0
-            ? <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "60px", color: "rgba(255,255,255,0.25)", fontSize: "13px" }}>No attorneys found.</div>
-            : filtered.map((a) => <AttorneyCard key={a.id} attorney={a} onView={setViewTarget} onEdit={handleEdit} onDelete={handleDelete} />)
+            ? <div className="col-span-full py-16 text-center text-[13px] text-white/25">No attorneys found.</div>
+            : filtered.map((a) => (
+              <AttorneyCard key={a.id} attorney={a} onView={setViewTarget} onEdit={handleEdit} onDelete={handleDelete} />
+            ))
           }
         </div>
       )}
 
-      {/* Table */}
+      {/* Table view */}
       {viewMode === "table" && (
-        <div style={{ ...fadeIn(170), background: "#0D1426", border: "1px solid rgba(141,198,63,0.12)", borderRadius: "10px", overflow: "hidden" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "2fr 2fr 1fr 0.5fr", padding: "12px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)", background: "rgba(0,0,0,0.2)" }}>
-            {["Name", "Email", "Hourly Rate", ""].map((h) => <span key={h} style={{ fontSize: "10px", fontWeight: 600, color: "rgba(255,255,255,0.3)", letterSpacing: "1.5px", textTransform: "uppercase" }}>{h}</span>)}
+        <div className={`overflow-hidden rounded-xl border border-[#8DC63F]/[0.12] bg-[#0D1426] transition-all delay-[170ms] duration-500 ${show}`}>
+          <div className="grid grid-cols-[2fr_2fr_1fr_0.5fr] border-b border-white/[0.06] bg-black/20 px-5 py-3">
+            {["Name", "Email", "Hourly Rate", ""].map((h) => (
+              <span key={h} className="text-[10px] font-semibold uppercase tracking-[1.5px] text-white/30">{h}</span>
+            ))}
           </div>
-          {filtered.length === 0
-            ? <div style={{ padding: "48px", textAlign: "center", color: "rgba(255,255,255,0.25)", fontSize: "13px" }}>No attorneys found.</div>
-            : filtered.map((a, i) => (
-              <div key={a.id} onClick={() => setViewTarget(a)}
-                style={{ display: "grid", gridTemplateColumns: "2fr 2fr 1fr 0.5fr", padding: "14px 20px", borderBottom: i < filtered.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", cursor: "pointer", transition: "background 0.15s", alignItems: "center" }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(141,198,63,0.04)")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "#8DC63F", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: 700, color: "#0A0F1E" }}>{getInitials(a.name)}</div>
-                  <p style={{ fontSize: "13px", fontWeight: 600, color: "#fff", margin: 0 }}>{a.name}</p>
+
+          {filtered.length === 0 ? (
+            <div className="px-5 py-12 text-center text-[13px] text-white/25">No attorneys found.</div>
+          ) : filtered.map((a, i) => (
+            <div
+              key={a.id}
+              onClick={() => setViewTarget(a)}
+              className={`grid cursor-pointer grid-cols-[2fr_2fr_1fr_0.5fr] items-center px-5 py-3.5 transition-colors hover:bg-[#8DC63F]/[0.04] ${i < filtered.length - 1 ? "border-b border-white/[0.04]" : ""}`}
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#8DC63F] text-[11px] font-bold text-[#0A0F1E]">
+                  {getInitials(a.name)}
                 </div>
-                <p style={{ fontSize: "12px", color: "rgba(255,255,255,0.5)", margin: 0 }}>{a.email}</p>
-                <p style={{ fontSize: "13px", fontWeight: 700, color: "#8DC63F", margin: 0 }}>{fmtR(a.hourlyRate)}</p>
-                <div style={{ display: "flex", gap: "6px" }} onClick={(e) => e.stopPropagation()}>
-                  <button onClick={() => handleEdit(a)} style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.3)", cursor: "pointer", padding: "4px" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = "#8DC63F")} onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.3)")}>
-                    <Edit2 style={{ width: "14px", height: "14px" }} />
-                  </button>
-                  <button onClick={() => handleDelete(a.id)} style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.3)", cursor: "pointer", padding: "4px" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = "#ef4444")} onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.3)")}>
-                    <Trash2 style={{ width: "14px", height: "14px" }} />
-                  </button>
-                </div>
+                <p className="m-0 text-[13px] font-semibold text-white">{a.name}</p>
               </div>
-            ))
-          }
-          <div style={{ padding: "12px 20px", borderTop: "1px solid rgba(141,198,63,0.1)", background: "rgba(0,0,0,0.15)" }}>
-            <span style={{ fontSize: "12px", color: "rgba(255,255,255,0.3)" }}>Showing <span style={{ color: "#8DC63F", fontWeight: 600 }}>{filtered.length}</span> of {attorneys.length} attorneys</span>
+              <p className="m-0 text-xs text-white/50">{a.email}</p>
+              <p className="m-0 text-[13px] font-bold text-[#8DC63F]">{fmtR(a.hourlyRate)}</p>
+              <div className="flex gap-1.5" onClick={(e) => e.stopPropagation()}>
+                <button
+                  onClick={() => handleEdit(a)}
+                  className="cursor-pointer border-none bg-transparent p-1 text-white/30 transition-colors hover:text-[#8DC63F]"
+                >
+                  <Edit2 className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={() => handleDelete(a.id)}
+                  className="cursor-pointer border-none bg-transparent p-1 text-white/30 transition-colors hover:text-red-400"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          ))}
+
+          <div className="border-t border-[#8DC63F]/10 bg-black/15 px-5 py-3">
+            <span className="text-xs text-white/30">
+              Showing <span className="font-semibold text-[#8DC63F]">{filtered.length}</span> of {attorneys.length} attorneys
+            </span>
           </div>
         </div>
       )}
 
       {viewTarget && <DetailModal attorney={viewTarget} onEdit={handleEdit} onClose={() => setViewTarget(null)} />}
-      {showForm && <AttorneyModal attorney={editTarget} onSave={handleSave} onClose={() => { setShowForm(false); setEditTarget(null); }} saving={saving} />}
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      {showForm   && <AttorneyModal attorney={editTarget} onSave={handleSave} onClose={() => { setShowForm(false); setEditTarget(null); }} saving={saving} />}
+      {toast      && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
   );
 }
