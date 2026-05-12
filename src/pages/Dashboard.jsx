@@ -224,7 +224,7 @@ export function Dashboard() {
       <div className={`mb-7 flex items-end justify-between transition-all duration-500 ${show}`}>
         <div>
           <p className="m-0 text-[11px] uppercase tracking-[3px] text-[#8DC63F]">{friendlyDate()}</p>
-          <h2 className="m-0 mt-1 text-2xl font-bold tracking-tight">{greeting()}, Amukelani.</h2>
+          <h2 className="m-0 mt-1 text-2xl font-bold tracking-tight">{greeting()}</h2>
           <p className="m-0 mt-1 text-[13px] text-white/35">
             {loading
               ? "Loading your dashboard…"

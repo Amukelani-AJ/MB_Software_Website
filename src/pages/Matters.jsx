@@ -1,80 +1,57 @@
 import { useState, useEffect } from "react";
-import {
-  Plus, Search, X, ChevronDown, Edit2, Trash2,
-  Briefcase, Loader, FileText,
-} from "lucide-react";
+import { Plus, Search, X, ChevronDown, Edit2, Trash2, Briefcase, Loader } from "lucide-react";
 
-// ── API ────────────────────────────────────────────────────────────────────────
 const BASE_URL = "https://localhost:7291/api";
 
 const matterApi = {
   getAll:  ()         => fetch(`${BASE_URL}/Matter`),
-  getById: (id)       => fetch(`${BASE_URL}/Matter/${id}`),
-  create:  (data)     => fetch(`${BASE_URL}/Matter`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  }),
-  update:  (id, data) => fetch(`${BASE_URL}/Matter/${id}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  }),
+  create:  (data)     => fetch(`${BASE_URL}/Matter`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }),
+  update:  (id, data) => fetch(`${BASE_URL}/Matter/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }),
   delete:  (id)       => fetch(`${BASE_URL}/Matter/${id}`, { method: "DELETE" }),
-};
-
-// ── Helpers ────────────────────────────────────────────────────────────────────
-const STATUS_STYLE = {
-  Active:   { color: "#8DC63F", bg: "rgba(141,198,63,0.1)",  border: "rgba(141,198,63,0.3)"  },
-  Pending:  { color: "#f59e0b", bg: "rgba(245,158,11,0.1)",  border: "rgba(245,158,11,0.3)"  },
-  Closed:   { color: "rgba(255,255,255,0.3)", bg: "rgba(255,255,255,0.05)", border: "rgba(255,255,255,0.1)" },
-  Inactive: { color: "rgba(255,255,255,0.3)", bg: "rgba(255,255,255,0.05)", border: "rgba(255,255,255,0.1)" },
 };
 
 const STATUS_OPTIONS = ["Active", "Pending", "Closed", "Inactive"];
 
-function getStatusStyle(status) {
-  return STATUS_STYLE[status] || STATUS_STYLE["Pending"];
-}
-
-// ── Toast ──────────────────────────────────────────────────────────────────────
-function Toast({ message, type, onClose }) {
-  useEffect(() => {
-    const t = setTimeout(onClose, 3000);
-    return () => clearTimeout(t);
-  }, []);
-  const color = type === "success" ? "#8DC63F" : "#ef4444";
-  return (
-    <div style={{ position: "fixed", bottom: "24px", right: "24px", zIndex: 200, background: "#0D1426", border: `1px solid ${color}40`, borderLeft: `3px solid ${color}`, borderRadius: "8px", padding: "12px 16px", display: "flex", alignItems: "center", gap: "10px", boxShadow: "0 8px 32px rgba(0,0,0,0.4)", fontFamily: "'Inter', sans-serif" }}>
-      <span style={{ fontSize: "13px", color: "#fff" }}>{message}</span>
-      <button onClick={onClose} style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.3)", cursor: "pointer" }}>
-        <X style={{ width: "14px", height: "14px" }} />
-      </button>
-    </div>
-  );
-}
-
-// ── Shared form primitives (defined at module scope to avoid remount on re-render)
-const inputStyle = {
-  width: "100%", background: "#080D1A",
-  border: "1px solid rgba(141,198,63,0.22)",
-  borderRadius: "7px", color: "#fff", fontSize: "13px",
-  padding: "10px 12px", outline: "none",
-  fontFamily: "'Inter', sans-serif", boxSizing: "border-box",
+const STATUS_CLS = {
+  Active:   "text-[#8DC63F] bg-[#8DC63F]/10 border border-[#8DC63F]/30",
+  Pending:  "text-amber-400 bg-amber-400/10 border border-amber-400/30",
+  Closed:   "text-white/30  bg-white/5      border border-white/10",
+  Inactive: "text-white/30  bg-white/5      border border-white/10",
 };
+const getStatusCls = (s) => STATUS_CLS[s] || STATUS_CLS.Pending;
 
-function Field({ label, children, required }) {
+// ── Module-scope primitives (prevents input focus-loss bug) ───────────────────
+const inputCls  = "w-full rounded-lg border border-[#8DC63F]/22 bg-[#080D1A] px-3 py-2.5 text-[13px] text-white outline-none placeholder:text-white/20 focus:border-[#8DC63F]/50";
+const selectCls = `${inputCls} cursor-pointer appearance-none pr-9`;
+
+function Field({ label, required, children }) {
   return (
     <div>
-      <label style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", letterSpacing: "1px", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>
-        {label} {required && <span style={{ color: "#8DC63F" }}>*</span>}
+      <label className="mb-1.5 block text-[11px] uppercase tracking-widest text-white/40">
+        {label}{required && <span className="text-[#8DC63F]"> *</span>}
       </label>
       {children}
     </div>
   );
 }
 
-// ── Matter Form Modal ──────────────────────────────────────────────────────────
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function Toast({ message, type, onClose }) {
+  useEffect(() => { const t = setTimeout(onClose, 3000); return () => clearTimeout(t); }, []);
+  const cls = type === "success"
+    ? "border-l-[#8DC63F] border-[#8DC63F]/25"
+    : "border-l-red-500 border-red-500/25";
+  return (
+    <div className={`fixed bottom-6 right-6 z-[200] flex items-center gap-2.5 rounded-lg border border-l-[3px] bg-[#0D1426] px-4 py-3 shadow-2xl ${cls}`}>
+      <span className="text-[13px] text-white">{message}</span>
+      <button onClick={onClose} className="cursor-pointer border-none bg-transparent text-white/30">
+        <X className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+}
+
+// ── Matter Form Modal ─────────────────────────────────────────────────────────
 function MatterModal({ matter, onSave, onClose, saving }) {
   const isEdit = !!matter;
   const [form, setForm] = useState({
@@ -83,85 +60,62 @@ function MatterModal({ matter, onSave, onClose, saving }) {
     description:  matter?.description  || "",
     status:       matter?.status       || "Active",
   });
-
-  const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
-
+  const set     = (key, val) => setForm((f) => ({ ...f, [key]: val }));
   const isValid = form.matterNumber && form.clientName && form.status;
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }} onClick={onClose}>
-      <div style={{ background: "#0D1426", border: "1px solid rgba(141,198,63,0.25)", borderRadius: "12px", width: "500px", maxWidth: "100%", fontFamily: "'Inter', sans-serif" }} onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-5" onClick={onClose}>
+      <div className="w-[500px] max-w-full rounded-xl border border-[#8DC63F]/25 bg-[#0D1426]" onClick={(e) => e.stopPropagation()}>
 
         {/* Header */}
-        <div style={{ padding: "20px 24px", borderBottom: "1px solid rgba(141,198,63,0.12)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div className="flex items-center justify-between border-b border-[#8DC63F]/12 px-6 py-5">
           <div>
-            <h3 style={{ fontSize: "16px", fontWeight: 700, color: "#fff", margin: 0 }}>
-              {isEdit ? "Edit Matter" : "New Matter"}
-            </h3>
-            <p style={{ fontSize: "12px", color: "rgba(255,255,255,0.35)", margin: "3px 0 0" }}>
+            <h3 className="m-0 text-base font-bold text-white">{isEdit ? "Edit Matter" : "New Matter"}</h3>
+            <p className="m-0 mt-0.5 text-xs text-white/35">
               {isEdit ? `Editing ${matter.matterNumber}` : "Create a new client matter"}
             </p>
           </div>
-          <button onClick={onClose} style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.35)", cursor: "pointer" }}>
-            <X style={{ width: "18px", height: "18px" }} />
+          <button onClick={onClose} className="cursor-pointer border-none bg-transparent text-white/35">
+            <X className="h-[18px] w-[18px]" />
           </button>
         </div>
 
         {/* Body */}
-        <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "14px" }}>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+        <div className="flex flex-col gap-3.5 p-6">
+          <div className="grid grid-cols-2 gap-3.5">
             <Field label="Matter Number" required>
-              <input
-                value={form.matterNumber}
-                onChange={(e) => set("matterNumber", e.target.value)}
-                placeholder="e.g. MAT-2024-001"
-                style={inputStyle}
-              />
+              <input value={form.matterNumber} onChange={(e) => set("matterNumber", e.target.value)}
+                placeholder="e.g. MAT-2024-001" className={inputCls} />
             </Field>
             <Field label="Status" required>
-              <div style={{ position: "relative" }}>
-                <select value={form.status} onChange={(e) => set("status", e.target.value)}
-                  style={{ ...inputStyle, appearance: "none", cursor: "pointer", paddingRight: "36px" }}>
-                  {STATUS_OPTIONS.map((s) => (
-                    <option key={s} value={s} style={{ background: "#0D1426" }}>{s}</option>
-                  ))}
+              <div className="relative">
+                <select value={form.status} onChange={(e) => set("status", e.target.value)} className={selectCls}>
+                  {STATUS_OPTIONS.map((s) => <option key={s} value={s} className="bg-[#0D1426]">{s}</option>)}
                 </select>
-                <ChevronDown style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", width: "14px", height: "14px", color: "rgba(255,255,255,0.3)", pointerEvents: "none" }} />
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/30" />
               </div>
             </Field>
           </div>
 
           <Field label="Client Name" required>
-            <input
-              value={form.clientName}
-              onChange={(e) => set("clientName", e.target.value)}
-              placeholder="e.g. Thandi Khumalo"
-              style={inputStyle}
-            />
+            <input value={form.clientName} onChange={(e) => set("clientName", e.target.value)}
+              placeholder="e.g. Thandi Khumalo" className={inputCls} />
           </Field>
 
           <Field label="Description">
-            <textarea
-              value={form.description}
-              onChange={(e) => set("description", e.target.value)}
-              placeholder="Brief description of the matter..."
-              rows={3}
-              style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }}
-            />
+            <textarea value={form.description} onChange={(e) => set("description", e.target.value)}
+              placeholder="Brief description of the matter…" rows={3}
+              className={`${inputCls} resize-y leading-relaxed`} />
           </Field>
 
-          {/* Actions */}
-          <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
-            <button
-              onClick={() => onSave(form)}
-              disabled={saving || !isValid}
-              style={{ flex: 1, fontSize: "13px", fontWeight: 700, color: "#0A0F1E", background: saving || !isValid ? "rgba(141,198,63,0.4)" : "#8DC63F", border: "none", borderRadius: "7px", padding: "12px", cursor: saving || !isValid ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
-            >
-              {saving && <Loader style={{ width: "14px", height: "14px", animation: "spin 1s linear infinite" }} />}
+          <div className="mt-1 flex gap-2.5">
+            <button onClick={() => onSave(form)} disabled={!isValid || saving}
+              className={`flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border-none py-3 text-[13px] font-bold text-[#0A0F1E] transition-opacity ${!isValid || saving ? "cursor-not-allowed bg-[#8DC63F]/50" : "bg-[#8DC63F] hover:opacity-90"}`}>
+              {saving && <Loader className="h-3.5 w-3.5 animate-spin" />}
               {isEdit ? "Save Changes" : "Create Matter"}
             </button>
-            <button onClick={onClose} style={{ fontSize: "13px", color: "rgba(255,255,255,0.5)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "7px", padding: "12px 20px", cursor: "pointer" }}>
+            <button onClick={onClose}
+              className="cursor-pointer rounded-lg border border-white/10 bg-white/5 px-5 py-3 text-[13px] text-white/50 hover:bg-white/10">
               Cancel
             </button>
           </div>
@@ -171,159 +125,137 @@ function MatterModal({ matter, onSave, onClose, saving }) {
   );
 }
 
-// ── Detail Modal ───────────────────────────────────────────────────────────────
+// ── Detail Modal ──────────────────────────────────────────────────────────────
 function DetailModal({ matter, onEdit, onClose }) {
   if (!matter) return null;
-  const s = getStatusStyle(matter.status);
-
+  const sCls = getStatusCls(matter.status);
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }} onClick={onClose}>
-      <div style={{ background: "#0D1426", border: "1px solid rgba(141,198,63,0.25)", borderRadius: "12px", width: "480px", maxWidth: "100%", fontFamily: "'Inter', sans-serif", overflow: "hidden" }} onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-5" onClick={onClose}>
+      <div className="w-[480px] max-w-full overflow-hidden rounded-xl border border-[#8DC63F]/25 bg-[#0D1426]" onClick={(e) => e.stopPropagation()}>
 
         {/* Header */}
-        <div style={{ background: "#080D1A", padding: "24px 28px", borderBottom: "1px solid rgba(141,198,63,0.12)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-              <div style={{ width: "44px", height: "44px", borderRadius: "10px", background: "rgba(141,198,63,0.12)", border: "1px solid rgba(141,198,63,0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <Briefcase style={{ width: "20px", height: "20px", color: "#8DC63F" }} />
+        <div className="border-b border-[#8DC63F]/12 bg-[#080D1A] p-7">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#8DC63F]/25 bg-[#8DC63F]/10">
+                <Briefcase className="h-5 w-5 text-[#8DC63F]" />
               </div>
               <div>
-                <h3 style={{ fontSize: "17px", fontWeight: 700, color: "#fff", margin: 0 }}>{matter.clientName}</h3>
-                <p style={{ fontSize: "11px", color: "rgba(141,198,63,0.6)", margin: "3px 0 0", letterSpacing: "0.5px" }}>{matter.matterNumber}</p>
+                <p className="m-0 text-[11px] uppercase tracking-widest text-[#8DC63F]/60">{matter.matterNumber}</p>
+                <h3 className="m-0 mt-0.5 text-lg font-bold text-white">{matter.clientName}</h3>
               </div>
             </div>
-            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-              <button onClick={() => onEdit(matter)} style={{ fontSize: "12px", color: "#8DC63F", background: "rgba(141,198,63,0.1)", border: "1px solid rgba(141,198,63,0.25)", borderRadius: "6px", padding: "7px 14px", cursor: "pointer" }}>
+            <div className="flex gap-2">
+              <button onClick={() => onEdit(matter)}
+                className="cursor-pointer rounded-md border border-[#8DC63F]/25 bg-[#8DC63F]/10 px-3.5 py-1.5 text-xs text-[#8DC63F] hover:bg-[#8DC63F]/20">
                 Edit
               </button>
-              <button onClick={onClose} style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.3)", cursor: "pointer" }}>
-                <X style={{ width: "18px", height: "18px" }} />
+              <button onClick={onClose} className="cursor-pointer border-none bg-transparent text-white/30">
+                <X className="h-[18px] w-[18px]" />
               </button>
             </div>
           </div>
         </div>
 
-        <div style={{ padding: "24px 28px" }}>
-          {/* Description */}
+        {/* Body */}
+        <div className="p-6">
+          <div className="mb-4 flex items-center gap-2">
+            <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest ${sCls}`}>
+              {matter.status}
+            </span>
+          </div>
           {matter.description && (
-            <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.5)", lineHeight: 1.7, margin: "0 0 20px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: "8px", padding: "12px 14px" }}>
-              {matter.description}
-            </p>
+            <div className="rounded-lg border border-[#8DC63F]/12 bg-white/[0.02] p-4">
+              <p className="m-0 mb-1.5 text-[10px] uppercase tracking-widest text-white/30">Description</p>
+              <p className="m-0 text-[13px] leading-relaxed text-white/65">{matter.description}</p>
+            </div>
           )}
-
-          {/* Info grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "20px" }}>
-            {[
-              { label: "Matter Number", value: matter.matterNumber },
-              { label: "Client",        value: matter.clientName },
-              { label: "Matter ID",     value: `#${matter.id}` },
-            ].map(({ label, value }) => (
-              <div key={label} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "8px", padding: "12px 14px" }}>
-                <p style={{ fontSize: "10px", color: "rgba(255,255,255,0.3)", letterSpacing: "1px", textTransform: "uppercase", margin: "0 0 4px" }}>{label}</p>
-                <p style={{ fontSize: "13px", fontWeight: 600, color: "#fff", margin: 0 }}>{value}</p>
-              </div>
-            ))}
-            {/* Status */}
-            <div style={{ background: s.bg, border: `1px solid ${s.border}`, borderRadius: "8px", padding: "12px 14px" }}>
-              <p style={{ fontSize: "10px", color: "rgba(255,255,255,0.3)", letterSpacing: "1px", textTransform: "uppercase", margin: "0 0 4px" }}>Status</p>
-              <p style={{ fontSize: "13px", fontWeight: 700, color: s.color, margin: 0 }}>{matter.status}</p>
+          <div className="mt-4 grid grid-cols-2 gap-2.5">
+            <div className="rounded-lg border border-[#8DC63F]/15 bg-[#8DC63F]/[0.06] p-3.5">
+              <p className="m-0 mb-1 text-[10px] uppercase tracking-widest text-[#8DC63F]/60">Matter ID</p>
+              <p className="m-0 text-xl font-bold text-white">#{matter.id}</p>
+            </div>
+            <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3.5">
+              <p className="m-0 mb-1 text-[10px] uppercase tracking-widest text-white/30">Reference</p>
+              <p className="m-0 text-xl font-bold text-[#8DC63F]">{matter.matterNumber}</p>
             </div>
           </div>
-
-          {/* Close button */}
-          <button onClick={onClose} style={{ width: "100%", fontSize: "13px", color: "rgba(255,255,255,0.5)", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "7px", padding: "11px", cursor: "pointer" }}>
-            Close
-          </button>
         </div>
       </div>
     </div>
   );
 }
 
-// ── Matter Card ────────────────────────────────────────────────────────────────
+// ── Matter Card ───────────────────────────────────────────────────────────────
 function MatterCard({ matter, onView, onEdit, onDelete }) {
-  const s = getStatusStyle(matter.status);
+  const sCls = getStatusCls(matter.status);
   return (
-    <div
-      onClick={() => onView(matter)}
-      style={{ background: "#0D1426", border: "1px solid rgba(141,198,63,0.12)", borderRadius: "10px", padding: "20px", cursor: "pointer", transition: "border-color 0.2s, transform 0.2s", position: "relative", overflow: "hidden" }}
-      onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(141,198,63,0.4)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
-      onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(141,198,63,0.12)"; e.currentTarget.style.transform = "translateY(0)"; }}
-    >
-      {/* Top strip */}
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "3px", background: s.color, opacity: 0.7 }} />
+    <div onClick={() => onView(matter)}
+      className="group relative cursor-pointer overflow-hidden rounded-xl border border-[#8DC63F]/[0.12] bg-[#0D1426] p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-[#8DC63F]/40">
+      <div className="absolute left-0 right-0 top-0 h-[3px] bg-[#8DC63F] opacity-50" />
 
-      {/* Top row */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <div style={{ width: "36px", height: "36px", borderRadius: "8px", background: "rgba(141,198,63,0.1)", border: "1px solid rgba(141,198,63,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Briefcase style={{ width: "16px", height: "16px", color: "#8DC63F" }} />
+      <div className="mb-3 flex items-start justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#8DC63F]/20 bg-[#8DC63F]/10">
+            <Briefcase className="h-4 w-4 text-[#8DC63F]" />
           </div>
-          <p style={{ fontSize: "11px", color: "rgba(141,198,63,0.6)", margin: 0, letterSpacing: "0.5px" }}>{matter.matterNumber}</p>
+          <div>
+            <p className="m-0 text-[11px] font-semibold tracking-wide text-[#8DC63F]/70">{matter.matterNumber}</p>
+            <p className="m-0 text-sm font-bold text-white">{matter.clientName}</p>
+          </div>
         </div>
-        <span style={{ fontSize: "10px", fontWeight: 600, color: s.color, background: s.bg, border: `1px solid ${s.border}`, padding: "3px 8px", borderRadius: "20px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+        <span className={`self-start rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${sCls}`}>
           {matter.status}
         </span>
       </div>
 
-      {/* Client name */}
-      <h3 style={{ fontSize: "15px", fontWeight: 700, color: "#fff", margin: "0 0 6px", lineHeight: 1.3 }}>{matter.clientName}</h3>
-
-      {/* Description */}
       {matter.description && (
-        <p style={{ fontSize: "12px", color: "rgba(255,255,255,0.4)", margin: "0 0 16px", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+        <p className="m-0 mb-3.5 line-clamp-2 text-xs leading-relaxed text-white/40">
           {matter.description}
         </p>
       )}
 
-      {/* Actions */}
-      <div style={{ display: "flex", gap: "8px", borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "14px" }}>
-        <button
-          onClick={(e) => { e.stopPropagation(); onEdit(matter); }}
-          style={{ flex: 1, fontSize: "11px", color: "#8DC63F", background: "rgba(141,198,63,0.08)", border: "1px solid rgba(141,198,63,0.2)", borderRadius: "6px", padding: "7px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "4px" }}
-        >
-          <Edit2 style={{ width: "11px", height: "11px" }} /> Edit
+      <div className="flex gap-2 border-t border-white/5 pt-3.5">
+        <button onClick={(e) => { e.stopPropagation(); onEdit(matter); }}
+          className="flex flex-1 cursor-pointer items-center justify-center gap-1 rounded-md border border-[#8DC63F]/20 bg-[#8DC63F]/[0.08] py-1.5 text-[11px] text-[#8DC63F] hover:bg-[#8DC63F]/20">
+          <Edit2 className="h-[11px] w-[11px]" /> Edit
         </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); onDelete(matter.id); }}
-          style={{ fontSize: "11px", color: "#ef4444", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: "6px", padding: "7px 12px", cursor: "pointer" }}
-        >
-          <Trash2 style={{ width: "11px", height: "11px" }} />
+        <button onClick={(e) => { e.stopPropagation(); onDelete(matter.id); }}
+          className="flex cursor-pointer items-center gap-1 rounded-md border border-red-500/20 bg-red-500/[0.08] px-3 py-1.5 text-[11px] text-red-400 hover:bg-red-500/20">
+          <Trash2 className="h-[11px] w-[11px]" />
         </button>
       </div>
     </div>
   );
 }
 
-// ── Main Component ─────────────────────────────────────────────────────────────
+// ── Main Component ────────────────────────────────────────────────────────────
 export function Matters() {
-  const [matters, setMatters]       = useState([]);
-  const [loading, setLoading]       = useState(true);
-  const [error, setError]           = useState(null);
-  const [search, setSearch]         = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
-  const [viewMode, setViewMode]     = useState("grid");
-  const [showForm, setShowForm]     = useState(false);
-  const [editTarget, setEditTarget] = useState(null);
-  const [viewTarget, setViewTarget] = useState(null);
-  const [saving, setSaving]         = useState(false);
-  const [toast, setToast]           = useState(null);
-  const [visible, setVisible]       = useState(false);
+  const [matters,     setMatters]     = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [error,       setError]       = useState(null);
+  const [search,      setSearch]      = useState("");
+  const [statusFilter,setStatusFilter]= useState("All");
+  const [viewMode,    setViewMode]    = useState("grid");
+  const [showForm,    setShowForm]    = useState(false);
+  const [editTarget,  setEditTarget]  = useState(null);
+  const [viewTarget,  setViewTarget]  = useState(null);
+  const [saving,      setSaving]      = useState(false);
+  const [toast,       setToast]       = useState(null);
+  const [visible,     setVisible]     = useState(false);
 
   useEffect(() => { setTimeout(() => setVisible(true), 50); }, []);
 
-  // ── Fetch ────────────────────────────────────────────────────────────────────
   const fetchMatters = async () => {
     try {
-      setLoading(true);
-      setError(null);
+      setLoading(true); setError(null);
       const res = await matterApi.getAll();
       if (!res.ok) throw new Error(`Error ${res.status}`);
       const data = await res.json();
-      setMatters(data);
-    } catch (err) {
+      // ── Newest first: sort by id descending ──────────────────────────────
+      setMatters([...data].sort((a, b) => (b.id ?? b.Id) - (a.id ?? a.Id)));
+    } catch {
       setError("Failed to load matters. Make sure your API is running.");
-      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -331,7 +263,6 @@ export function Matters() {
 
   useEffect(() => { fetchMatters(); }, []);
 
-  // ── Save (create or update) ──────────────────────────────────────────────────
   const handleSave = async (form) => {
     setSaving(true);
     try {
@@ -341,239 +272,193 @@ export function Matters() {
         description:  form.description,
         status:       form.status,
       };
-
-      let res;
-      if (editTarget) {
-        res = await matterApi.update(editTarget.id, { id: editTarget.id, ...payload });
-      } else {
-        res = await matterApi.create(payload);
-      }
-
-      if (!res.ok) throw new Error(`Error ${res.status}`);
-      setToast({ message: editTarget ? "Matter updated successfully" : "Matter created successfully", type: "success" });
-      setShowForm(false);
-      setEditTarget(null);
+      const res = editTarget
+        ? await matterApi.update(editTarget.id, { id: editTarget.id, ...payload })
+        : await matterApi.create(payload);
+      if (!res.ok) throw new Error();
+      setToast({ message: editTarget ? "Matter updated." : "Matter created.", type: "success" });
+      setShowForm(false); setEditTarget(null);
       fetchMatters();
-    } catch (err) {
-      setToast({ message: "Failed to save matter. Please try again.", type: "error" });
-      console.error(err);
-    } finally {
-      setSaving(false);
-    }
+    } catch {
+      setToast({ message: "Failed to save matter.", type: "error" });
+    } finally { setSaving(false); }
   };
 
-  // ── Delete ───────────────────────────────────────────────────────────────────
   const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this matter?")) return;
+    if (!window.confirm("Delete this matter?")) return;
     try {
       const res = await matterApi.delete(id);
-      if (!res.ok) throw new Error(`Error ${res.status}`);
-      setToast({ message: "Matter deleted", type: "success" });
+      if (!res.ok) throw new Error();
+      setToast({ message: "Matter deleted.", type: "success" });
       fetchMatters();
-    } catch (err) {
+    } catch {
       setToast({ message: "Failed to delete matter.", type: "error" });
-      console.error(err);
     }
   };
 
-  const handleEdit = (matter) => {
-    setViewTarget(null);
-    setEditTarget(matter);
-    setShowForm(true);
-  };
+  const handleEdit = (m) => { setViewTarget(null); setEditTarget(m); setShowForm(true); };
 
-  // ── Filter ───────────────────────────────────────────────────────────────────
   const filtered = matters.filter((m) => {
     const q = search.toLowerCase();
-    const matchSearch =
-      m.clientName.toLowerCase().includes(q) ||
-      m.matterNumber.toLowerCase().includes(q) ||
-      (m.description || "").toLowerCase().includes(q);
+    const matchSearch = (m.clientName || "").toLowerCase().includes(q) || (m.matterNumber || "").toLowerCase().includes(q);
     const matchStatus = statusFilter === "All" || m.status === statusFilter;
     return matchSearch && matchStatus;
   });
 
-  // ── Counts for summary cards ──────────────────────────────────────────────────
   const activeCount  = matters.filter((m) => m.status === "Active").length;
   const pendingCount = matters.filter((m) => m.status === "Pending").length;
   const closedCount  = matters.filter((m) => m.status === "Closed").length;
 
-  const fadeIn = (d = 0) => ({
-    opacity: visible ? 1 : 0,
-    transform: visible ? "translateY(0)" : "translateY(12px)",
-    transition: `opacity 0.4s ease ${d}ms, transform 0.4s ease ${d}ms`,
-  });
+  const show = visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3";
 
-  // ── Loading ──────────────────────────────────────────────────────────────────
-  if (loading) {
-    return (
-      <div style={{ minHeight: "100%", background: "#080D1A", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: "16px", fontFamily: "'Inter', sans-serif" }}>
-        <style>{`@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }`}</style>
-        <Loader style={{ width: "32px", height: "32px", color: "#8DC63F", animation: "spin 1s linear infinite" }} />
-        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "13px", margin: 0 }}>Loading matters...</p>
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="flex min-h-full flex-col items-center justify-center gap-4 bg-[#080D1A]">
+      <Loader className="h-8 w-8 animate-spin text-[#8DC63F]" />
+      <p className="text-[13px] text-white/40">Loading matters...</p>
+    </div>
+  );
 
-  // ── Error ────────────────────────────────────────────────────────────────────
-  if (error) {
-    return (
-      <div style={{ minHeight: "100%", background: "#080D1A", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: "16px", fontFamily: "'Inter', sans-serif", padding: "40px" }}>
-        <div style={{ width: "48px", height: "48px", borderRadius: "12px", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <X style={{ width: "22px", height: "22px", color: "#ef4444" }} />
-        </div>
-        <p style={{ color: "#fff", fontSize: "15px", fontWeight: 600, margin: 0 }}>Could not load matters</p>
-        <p style={{ color: "rgba(255,255,255,0.35)", fontSize: "13px", margin: 0, textAlign: "center" }}>{error}</p>
-        <button onClick={fetchMatters} style={{ fontSize: "13px", fontWeight: 600, color: "#0A0F1E", background: "#8DC63F", border: "none", borderRadius: "7px", padding: "10px 20px", cursor: "pointer" }}>
-          Retry
-        </button>
-      </div>
-    );
-  }
+  if (error) return (
+    <div className="flex min-h-full flex-col items-center justify-center gap-4 bg-[#080D1A] px-10">
+      <p className="text-[15px] font-semibold text-white">Could not load matters</p>
+      <p className="text-[13px] text-white/35">{error}</p>
+      <button onClick={fetchMatters}
+        className="cursor-pointer rounded-lg border-none bg-[#8DC63F] px-5 py-2.5 text-[13px] font-bold text-[#0A0F1E]">
+        Retry
+      </button>
+    </div>
+  );
 
   return (
-    <div style={{ minHeight: "100%", background: "#080D1A", padding: "28px 32px", fontFamily: "'Inter', sans-serif", color: "#fff" }}>
-      <style>{`@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }`}</style>
+    <div className="min-h-full bg-[#080D1A] px-8 py-7 font-sans text-white">
 
-      {/* ── Header ── */}
-      <div style={{ ...fadeIn(0), display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "24px" }}>
+      {/* Header */}
+      <div className={`mb-6 flex items-end justify-between transition-all duration-500 ${show}`}>
         <div>
-          <p style={{ fontSize: "11px", color: "#8DC63F", letterSpacing: "3px", textTransform: "uppercase", margin: 0 }}>Client Management</p>
-          <h2 style={{ fontSize: "24px", fontWeight: 700, margin: "4px 0 0", letterSpacing: "-0.5px" }}>Matters</h2>
-          <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.35)", margin: "4px 0 0" }}>All client matters and their current status</p>
+          <p className="m-0 text-[11px] uppercase tracking-[3px] text-[#8DC63F]">Case Management</p>
+          <h2 className="m-0 mt-1 text-2xl font-bold tracking-tight">Matters</h2>
+          <p className="m-0 mt-1 text-[13px] text-white/35">All client matters and their current status</p>
         </div>
-        <button
-          onClick={() => { setEditTarget(null); setShowForm(true); }}
-          style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", fontWeight: 700, color: "#0A0F1E", background: "#8DC63F", border: "none", borderRadius: "7px", padding: "10px 18px", cursor: "pointer" }}
-        >
-          <Plus style={{ width: "15px", height: "15px" }} /> New Matter
+        <button onClick={() => { setEditTarget(null); setShowForm(true); }}
+          className="flex cursor-pointer items-center gap-1.5 rounded-lg border-none bg-[#8DC63F] px-[18px] py-2.5 text-[13px] font-bold text-[#0A0F1E] hover:opacity-90">
+          <Plus className="h-[15px] w-[15px]" /> New Matter
         </button>
       </div>
 
-      {/* ── Summary cards ── */}
-      <div style={{ ...fadeIn(80), display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "14px", marginBottom: "20px" }}>
+      {/* Summary cards */}
+      <div className={`mb-5 grid grid-cols-4 gap-3.5 transition-all delay-[80ms] duration-500 ${show}`}>
         {[
-          { label: "Total Matters", value: matters.length,  color: "#fff"    },
-          { label: "Active",        value: activeCount,      color: "#8DC63F" },
-          { label: "Pending",       value: pendingCount,     color: "#f59e0b" },
-          { label: "Closed",        value: closedCount,      color: "rgba(255,255,255,0.3)" },
+          { label: "Total Matters", value: matters.length, color: "text-white"      },
+          { label: "Active",        value: activeCount,    color: "text-[#8DC63F]"  },
+          { label: "Pending",       value: pendingCount,   color: "text-amber-400"  },
+          { label: "Closed",        value: closedCount,    color: "text-white/30"   },
         ].map((c) => (
-          <div key={c.label} style={{ background: "#0D1426", border: "1px solid rgba(141,198,63,0.1)", borderRadius: "8px", padding: "16px 18px" }}>
-            <p style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)", letterSpacing: "1.5px", textTransform: "uppercase", margin: 0 }}>{c.label}</p>
-            <p style={{ fontSize: "22px", fontWeight: 700, color: c.color, margin: "6px 0 0" }}>{c.value}</p>
+          <div key={c.label} className="rounded-lg border border-[#8DC63F]/10 bg-[#0D1426] px-[18px] py-4">
+            <p className="m-0 text-[10px] uppercase tracking-[1.5px] text-white/35">{c.label}</p>
+            <p className={`m-0 mt-1.5 text-[22px] font-bold ${c.color}`}>{c.value}</p>
           </div>
         ))}
       </div>
 
-      {/* ── Filters ── */}
-      <div style={{ ...fadeIn(130), display: "flex", gap: "10px", marginBottom: "20px", alignItems: "center", flexWrap: "wrap" }}>
-        {/* Search */}
-        <div style={{ position: "relative", flex: 1, minWidth: "200px" }}>
-          <Search style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", width: "14px", height: "14px", color: "rgba(255,255,255,0.3)" }} />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search client, matter number..."
-            style={{ width: "100%", background: "#0D1426", border: "1px solid rgba(141,198,63,0.2)", borderRadius: "6px", color: "rgba(255,255,255,0.8)", fontSize: "12px", padding: "8px 12px 8px 32px", outline: "none", boxSizing: "border-box", fontFamily: "'Inter', sans-serif" }} />
+      {/* Filters */}
+      <div className={`mb-5 flex flex-wrap items-center gap-2.5 transition-all delay-[130ms] duration-500 ${show}`}>
+        <div className="relative min-w-[200px] flex-1">
+          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/30" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search client, matter number..."
+            className="w-full rounded-md border border-[#8DC63F]/20 bg-[#0D1426] py-2 pl-8 pr-3 text-xs text-white/80 outline-none placeholder:text-white/25" />
         </div>
 
-        {/* Status filter tabs */}
-        <div style={{ display: "flex", gap: "6px" }}>
+        {/* Status filter pills */}
+        <div className="flex gap-1.5">
           {["All", ...STATUS_OPTIONS].map((s) => (
             <button key={s} onClick={() => setStatusFilter(s)}
-              style={{ fontSize: "12px", padding: "7px 14px", borderRadius: "20px", border: "1px solid", cursor: "pointer", fontFamily: "'Inter', sans-serif", transition: "all 0.15s ease",
-                background: statusFilter === s ? "#8DC63F" : "transparent",
-                color: statusFilter === s ? "#0A0F1E" : "rgba(255,255,255,0.45)",
-                borderColor: statusFilter === s ? "#8DC63F" : "rgba(255,255,255,0.1)",
-                fontWeight: statusFilter === s ? 600 : 400,
-              }}>
+              className={`cursor-pointer rounded-full border px-3.5 py-1.5 text-xs transition-all duration-150 ${statusFilter === s
+                ? "border-[#8DC63F] bg-[#8DC63F] font-semibold text-[#0A0F1E]"
+                : "border-white/10 bg-transparent text-white/45 hover:border-white/25 hover:text-white/70"
+              }`}>
               {s}
             </button>
           ))}
         </div>
 
-        {/* Clear search */}
         {search && (
           <button onClick={() => setSearch("")}
-            style={{ fontSize: "11px", color: "#ef4444", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: "6px", padding: "8px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}>
-            <X style={{ width: "12px", height: "12px" }} /> Clear
+            className="flex cursor-pointer items-center gap-1 rounded-md border border-red-500/25 bg-red-500/10 px-3 py-2 text-[11px] text-red-400 hover:bg-red-500/20">
+            <X className="h-3 w-3" /> Clear
           </button>
         )}
 
         {/* View toggle */}
-        <div style={{ display: "flex", background: "#0D1426", border: "1px solid rgba(141,198,63,0.2)", borderRadius: "6px", overflow: "hidden", marginLeft: "auto" }}>
+        <div className="ml-auto flex overflow-hidden rounded-md border border-[#8DC63F]/20 bg-[#0D1426]">
           {["grid", "table"].map((v) => (
             <button key={v} onClick={() => setViewMode(v)}
-              style={{ padding: "8px 14px", fontSize: "12px", border: "none", cursor: "pointer", fontFamily: "'Inter', sans-serif", background: viewMode === v ? "#8DC63F" : "transparent", color: viewMode === v ? "#0A0F1E" : "rgba(255,255,255,0.4)", fontWeight: viewMode === v ? 600 : 400, transition: "all 0.15s ease" }}>
+              className={`cursor-pointer border-none px-3.5 py-2 text-xs transition-colors ${viewMode === v ? "bg-[#8DC63F] font-semibold text-[#0A0F1E]" : "bg-transparent text-white/40 hover:text-white/70"}`}>
               {v === "grid" ? "⊞ Grid" : "☰ Table"}
             </button>
           ))}
         </div>
       </div>
 
-      {/* ── Grid View ── */}
+      {/* Grid view */}
       {viewMode === "grid" && (
-        <div style={{ ...fadeIn(170), display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px,1fr))", gap: "16px" }}>
+        <div className={`grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4 transition-all delay-[170ms] duration-500 ${show}`}>
           {filtered.length === 0
-            ? <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "60px", color: "rgba(255,255,255,0.25)", fontSize: "13px" }}>No matters found.</div>
-            : filtered.map((m) => <MatterCard key={m.id} matter={m} onView={setViewTarget} onEdit={handleEdit} onDelete={handleDelete} />)
+            ? <div className="col-span-full py-16 text-center text-[13px] text-white/25">No matters found.</div>
+            : filtered.map((m) => (
+              <MatterCard key={m.id} matter={m} onView={setViewTarget} onEdit={handleEdit} onDelete={handleDelete} />
+            ))
           }
         </div>
       )}
 
-      {/* ── Table View ── */}
+      {/* Table view */}
       {viewMode === "table" && (
-        <div style={{ ...fadeIn(170), background: "#0D1426", border: "1px solid rgba(141,198,63,0.12)", borderRadius: "10px", overflow: "hidden" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr 2fr 0.8fr 0.5fr", padding: "12px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)", background: "rgba(0,0,0,0.2)" }}>
+        <div className={`overflow-hidden rounded-xl border border-[#8DC63F]/[0.12] bg-[#0D1426] transition-all delay-[170ms] duration-500 ${show}`}>
+          <div className="grid grid-cols-[1fr_1.5fr_2fr_0.8fr_0.5fr] border-b border-white/[0.06] bg-black/20 px-5 py-3">
             {["Matter No.", "Client", "Description", "Status", ""].map((h) => (
-              <span key={h} style={{ fontSize: "10px", fontWeight: 600, color: "rgba(255,255,255,0.3)", letterSpacing: "1.5px", textTransform: "uppercase" }}>{h}</span>
+              <span key={h} className="text-[10px] font-semibold uppercase tracking-[1.5px] text-white/30">{h}</span>
             ))}
           </div>
 
-          {filtered.length === 0
-            ? <div style={{ padding: "48px", textAlign: "center", color: "rgba(255,255,255,0.25)", fontSize: "13px" }}>No matters found.</div>
-            : filtered.map((m, i) => {
-              const s = getStatusStyle(m.status);
-              return (
-                <div key={m.id} onClick={() => setViewTarget(m)}
-                  style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr 2fr 0.8fr 0.5fr", padding: "14px 20px", borderBottom: i < filtered.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", cursor: "pointer", transition: "background 0.15s", alignItems: "center" }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(141,198,63,0.04)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                >
-                  <p style={{ fontSize: "12px", color: "rgba(141,198,63,0.7)", margin: 0, fontWeight: 600 }}>{m.matterNumber}</p>
-                  <p style={{ fontSize: "13px", fontWeight: 600, color: "#fff", margin: 0 }}>{m.clientName}</p>
-                  <p style={{ fontSize: "12px", color: "rgba(255,255,255,0.4)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.description || "—"}</p>
-                  <span style={{ fontSize: "10px", fontWeight: 600, color: s.color, background: s.bg, border: `1px solid ${s.border}`, padding: "3px 8px", borderRadius: "20px", textTransform: "uppercase", letterSpacing: "0.5px", display: "inline-block" }}>
-                    {m.status}
-                  </span>
-                  <div style={{ display: "flex", gap: "6px" }} onClick={(e) => e.stopPropagation()}>
-                    <button onClick={() => handleEdit(m)} style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.3)", cursor: "pointer", padding: "4px", transition: "color 0.15s" }}
-                      onMouseEnter={(e) => (e.currentTarget.style.color = "#8DC63F")}
-                      onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.3)")}>
-                      <Edit2 style={{ width: "14px", height: "14px" }} />
-                    </button>
-                    <button onClick={() => handleDelete(m.id)} style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.3)", cursor: "pointer", padding: "4px", transition: "color 0.15s" }}
-                      onMouseEnter={(e) => (e.currentTarget.style.color = "#ef4444")}
-                      onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.3)")}>
-                      <Trash2 style={{ width: "14px", height: "14px" }} />
-                    </button>
-                  </div>
+          {filtered.length === 0 ? (
+            <div className="px-5 py-12 text-center text-[13px] text-white/25">No matters found.</div>
+          ) : filtered.map((m, i) => {
+            const sCls = getStatusCls(m.status);
+            return (
+              <div key={m.id} onClick={() => setViewTarget(m)}
+                className={`grid cursor-pointer grid-cols-[1fr_1.5fr_2fr_0.8fr_0.5fr] items-center px-5 py-3.5 transition-colors hover:bg-[#8DC63F]/[0.04] ${i < filtered.length - 1 ? "border-b border-white/[0.04]" : ""}`}>
+                <p className="m-0 text-xs font-semibold text-[#8DC63F]/70">{m.matterNumber}</p>
+                <p className="m-0 text-[13px] font-semibold text-white">{m.clientName}</p>
+                <p className="m-0 overflow-hidden text-ellipsis whitespace-nowrap text-xs text-white/40">{m.description || "—"}</p>
+                <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${sCls}`}>
+                  {m.status}
+                </span>
+                <div className="flex gap-1.5" onClick={(e) => e.stopPropagation()}>
+                  <button onClick={() => handleEdit(m)}
+                    className="cursor-pointer border-none bg-transparent p-1 text-white/30 transition-colors hover:text-[#8DC63F]">
+                    <Edit2 className="h-3.5 w-3.5" />
+                  </button>
+                  <button onClick={() => handleDelete(m.id)}
+                    className="cursor-pointer border-none bg-transparent p-1 text-white/30 transition-colors hover:text-red-400">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
                 </div>
-              );
-            })
-          }
+              </div>
+            );
+          })}
 
-          <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 20px", borderTop: "1px solid rgba(141,198,63,0.1)", background: "rgba(0,0,0,0.15)" }}>
-            <span style={{ fontSize: "12px", color: "rgba(255,255,255,0.3)" }}>
-              Showing <span style={{ color: "#8DC63F", fontWeight: 600 }}>{filtered.length}</span> of {matters.length} matters
+          <div className="flex justify-between border-t border-[#8DC63F]/10 bg-black/15 px-5 py-3">
+            <span className="text-xs text-white/30">
+              Showing <span className="font-semibold text-[#8DC63F]">{filtered.length}</span> of {matters.length} matters
             </span>
           </div>
         </div>
       )}
 
-      {/* ── Modals ── */}
       {viewTarget && <DetailModal matter={viewTarget} onEdit={handleEdit} onClose={() => setViewTarget(null)} />}
       {showForm   && <MatterModal matter={editTarget} onSave={handleSave} onClose={() => { setShowForm(false); setEditTarget(null); }} saving={saving} />}
-
-      {/* ── Toast ── */}
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      {toast      && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
   );
 }
